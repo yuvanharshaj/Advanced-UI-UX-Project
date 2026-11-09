@@ -446,7 +446,8 @@ function renderHomeScreen(params, lang) {
       </div>
 
       <button type="button" class="btn-primary" id="btn-search-continue">
-        ${t('continue')}
+        <span>${t('continue')}</span>
+        <span class="route-arrow-icon mirror-rtl" aria-hidden="true">${getIcon('arrow-forward')}</span>
       </button>
     </section>
 
