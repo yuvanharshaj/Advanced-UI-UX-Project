@@ -1,114 +1,82 @@
-# TransitOne - Unified RTL & Indic Public Transport Web Prototype
+# TransitOne - Unified Indic & RTL Public Transport Prototype (v2.0)
 
-> **Problem Statement 64: Unified RTL and Indic Design System**  
-> Engineering a single, cohesive design system that provides equal visual hierarchy, accessibility, and fluid responsiveness across Left-to-Right Latin scripts (English), complex Indic scripts with vertical conjuncts (Hindi & Kannada), and Right-to-Left bidirectional scripts (Urdu) without separate per-language layouts.
+> **Problem Statement 64: Unified RTL and Indic Design System Localisation**  
+> Engineering a single, cohesive design system that provides equal visual hierarchy, accessibility, and fluid responsiveness across Left-to-Right Latin scripts (English), complex Indic scripts with vertical conjuncts (Hindi in Devanagari & Kannada), and Right-to-Left bidirectional scripts (Urdu in Arabic script) without separate per-language layouts.
 
 ---
 
-## 1. Overview & Architecture
+## 1. Project Overview & Architecture
 
-TransitOne is an ultra-fast, zero-dependency multilingual transit prototype designed for Karnataka and Bangalore commuter corridors. Built using pure vanilla web standards (HTML5, modern CSS logical properties, and ES modules), TransitOne demonstrates that modern CSS and semantic HTML can support complex multilingual layouts without frameworks, bundlers, or CDNs.
+TransitOne is an ultra-fast, zero-dependency multilingual transit web prototype engineered for commuter corridors. Built using pure vanilla web standards (HTML5, CSS Logical Properties, and ES Modules), TransitOne demonstrates that modern CSS and semantic HTML can support complex multilingual layouts without frameworks, bundlers, build steps, or CDNs.
 
-- **Design Reference**: [Figma Reference Design](https://www.figma.com/file/placeholder-transitone-prototype)
-- **WCAG Conformance**: WCAG 2.2 Level AA Compliant (Text contrast >= 6.2:1 on brand fills, 3px persistent high-contrast focus rings, 44x44px minimum touch targets).
-- **Offline / PWA**: Full Service Worker app-shell caching with offline detection and Web App Manifest.
+- **WCAG Conformance**: WCAG 2.2 Level AA Compliant (Text contrast >= 6.21:1 on brand orange fills, 3px high-contrast focus rings, 44×44px minimum touch targets).
+- **Zero-Dependency**: 100% static ES modules; static-hostable on Vercel, Netlify, or GitHub Pages.
+- **Offline / PWA**: Full Service Worker v2 app-shell caching with offline detection and Web App Manifest.
 
 ---
 
 ## 2. Supported Languages & Script Engineering
 
-| Language | Code | Script | Direction | Font Stack | Line Height |
+| Language | Code | Script | Direction | Typography Stack | Line Height |
 | :--- | :---: | :--- | :---: | :--- | :---: |
-| **English** | `en` | Latin | LTR | `Inter`, system-ui, sans-serif | `1.5` |
-| **हिन्दी (Hindi)** | `hi` | Devanagari | LTR | `Noto Sans Devanagari`, sans-serif | `1.7` |
-| **ಕನ್ನಡ (Kannada)** | `kn` | Kannada | LTR | `Noto Sans Kannada`, sans-serif | `1.75` |
-| **اردو (Urdu)** | `ur` | Arabic / Naskh | RTL | `Noto Naskh Arabic`, serif | `1.8` |
+| **English** | `en` | Latin | LTR | System UI, Inter, -apple-system, sans-serif | `1.5` |
+| **हिन्दी (Hindi)** | `hi` | Devanagari | LTR | Noto Sans Devanagari, Mangal, Nirmala UI, sans-serif | `1.7` |
+| **ಕನ್ನಡ (Kannada)** | `kn` | Kannada | LTR | Noto Sans Kannada, Tunga, Kedage, sans-serif | `1.75` |
+| **اردو (Urdu)** | `ur` | Arabic / Nastaliq | RTL | Noto Nastaliq Urdu, Noto Sans Arabic, Arial, sans-serif | `1.8` |
 
 ### Key Architectural Pillars:
-1. **CSS Logical Properties Only**:
-   Every spatial layout rule is declared with logical properties (`margin-inline-start`, `padding-inline`, `inset-inline-start`, `text-align: start`). There are zero physical `left`/`right` rules anywhere in the stylesheet.
+1. **100% CSS Logical Properties**:
+   Every spatial layout rule is declared with logical properties (`margin-inline-start`, `padding-inline`, `inset-inline-start`, `text-align: start`). There are **zero physical left/right properties** anywhere in the stylesheet.
 2. **Preventing Indic Glyphic Clipping**:
-   Kannada (*ottu*) and Hindi matras demand extended vertical bounding boxes. Line heights are elevated per script (`1.7` - `1.8`), container heights are flexible (`min-block-size`), and `overflow: visible` prevents clipping of complex ligatures.
-3. **Selective Icon Mirroring**:
-   - *Mirrored in RTL* (`.mirror-rtl`): Back navigation arrows, drilldown chevrons, route journey flow arrows, and "See all" forward indicators.
-   - *Never Mirrored*: Symmetrical or universal real-world icons (globe, search lens, clock, map pin, bus/metro outlines, currency glyphs, tickets).
+   Kannada (*ottu* sub-glyphs) and Hindi (*matras*) demand extended vertical bounding boxes. Line heights are elevated per script (`1.7`–`1.8`), container heights are flexible (`min-block-size`), and descender padding buffers prevent clipping.
+3. **Selective Icon Mirroring via Unified SVG Sprite**:
+   Single source of truth in `demo/assets/sprite.svg`:
+   - *Mirrored in RTL* (`data-mirror="true"`, `.mirror-rtl`): Back navigation arrows, drill-down chevrons, route flow arrows, and "See all" forward indicators.
+   - *Never Mirrored* (`data-mirror="false"`): Symmetrical or real-world icons (globe, search lens, clock, map pin, bus/metro outlines, currency glyphs, tickets, QR codes, stars).
 4. **Bidirectional Isolation (`<bdi>`)**:
-   Latin route codes (e.g. `Metro M1`, `Bus 500`) and phone numbers embedded in Urdu RTL sentences are wrapped in `<bdi>` elements to prevent Unicode bidirectional algorithm reordering errors.
-5. **Layout Torture Testing**:
-   The built-in "Force Opposite Direction" test flips `document.documentElement.dir` independently of language to verify pure direction-agnostic agility.
+   Latin route codes (e.g. `Metro M1`, `Bus 500-D`) and phone numbers embedded in Urdu RTL sentences are wrapped in `<bdi>` elements to prevent Unicode bidirectional algorithm reordering errors.
+5. **Intl Engine & Numerals Switching**:
+   Supports both Latin digits (1, 2, 3) and Native script numerals (Devanagari १, २, ३; Kannada ೧, ೨, ೩; Eastern Arabic numerals ۱, ۲, ۳) with localized plural rules (`Intl.PluralRules`).
 
 ---
 
-## 3. Screen Inventory
+## 3. Screen Inventory & Features
 
-1. **Welcome / Onboarding** (`#/welcome`): Native script selection in a 2x2 grid, high-resolution hero rail illustration, instant language preview, and keyboard arrow navigation.
-2. **Journey Planner / Home** (`#/home`): Top brand bar with pink-tinted language pill, origin/destination inputs with localized datalists, white square swap button, and quick-route corridor cards.
-3. **Available Routes** (`#/results?from=&to=`): Route summary banner, highlighted primary route card, duration chips, stop counts, and ticket fares.
-4. **Route Details & Timetable** (`#/route/:id`): Departure timeline with vertical stop connector line that flips dynamically in RTL.
-5. **Settings & Accessibility** (`#/settings`): Radio language selection, Larger Text mode (125%), High Contrast mode (WCAG AAA 4.8:1), About dialog, and Prototype Tools.
-6. **Design System Specification** (`#/design-system`): Complete 8-section living style guide with live WCAG contrast calculation, token scale, bidirectional comparison, and +40% text-expansion stress testing.
-7. **Edge States**: Real UI views for `empty`, `loading` (shimmer skeletons), `error` (same origin/dest with inline alert), `offline` banner, and `denied` geolocation.
+1. **Welcome / Onboarding** (`#/welcome`): Native script selection in a 2×2 grid, high-resolution hero rail illustration, instant language preview, and keyboard arrow navigation.
+2. **Journey Planner / Home** (`#/home`): Top brand bar with pink-tinted language pill, ARIA 1.2 combobox search for origin/destination with multi-script substring and alias matching (e.g. "kbs" → Majestic, "bial" → Airport), swap button, recent searches (last 5), and saved routes.
+3. **Available Routes** (`#/results`): Route summary banner, mode filtering (All, Metro, Bus), live sorting (Fastest, Cheapest, Fewest stops), live departure countdown chips with pulsing green dot (`Live • 4 min`), duration, stops count, and fares.
+4. **Route Details & Timetable** (`#/route/:id`): Upcoming departures bar (next 3 departure countdowns & clock times), full vertical stops timeline, Save Route toggle (persisted to storage), Share Route action (Web Share API with clipboard fallback toast), and primary "Buy ticket" CTA.
+5. **Ticket Booking & Digital Pass** (`#/buy` & `#/ticket/:id`): Passenger count stepper (1–6), traveler contact info (`dir="ltr"`), payment method selector (UPI, Transit Card, Cash), dynamic fare calculation, and generated digital vector SVG QR boarding pass.
+6. **Settings & Accessibility** (`#/settings`): Radio language selection, Latin vs Native numerals switch, Larger Text mode (125%), High Contrast mode (WCAG AAA 4.8:1), Data Management (Clear saved data), and Prototype Tools.
+7. **Design System Specification** (`#/design-system`): Living style guide featuring live WCAG contrast calculation, script direction matrix, Font Metrics Lab with baseline rulers & stacked glyph stress tests, Side-by-Side LTR vs RTL Mirroring Lab, and Cultural Icons audit.
+8. **Edge States**: Real UI views for `empty`, `loading` (shimmer skeletons), `error` (same origin/dest with inline alert), `offline` banner, and `denied` geolocation.
 
 ---
 
-## 4. Getting Started Locally
+## 4. Verification & Testing Suite
 
-Serve the `demo/` folder directly with any static HTTP server:
+An automated end-to-end verification suite is included in `tests/cross_script_suite.py`:
 
 ```bash
-# Using Python 3
+# Run the automated cross-script test suite
+python tests/cross_script_suite.py
+```
+
+The suite validates:
+- 100% CSS logical properties audit (zero physical left/right properties).
+- 12/12 screen and language combinations across mobile (`360x740`), iPhone (`390x844`), and tablet (`768x1024`).
+- ARIA combobox typed alias search, filter/sorting, ticket booking, and numeral switching.
+- Zero horizontal overflow across all scripts.
+
+---
+
+## 5. Local Setup
+
+Run the application locally with Python:
+
+```bash
+# Start local development server
 python -m http.server 8000 --directory demo
 ```
 
-Open [http://localhost:8000/index.html](http://localhost:8000/index.html) in your browser.
-
----
-
-## 5. Deployment (Vercel)
-
-TransitOne is configured for instant zero-config deployment on Vercel:
-- **Framework Preset**: Other
-- **Root Directory**: `demo`
-- **Build Command**: *(leave empty)*
-- **Output Directory**: *(leave empty)*
-
-The included `demo/vercel.json` ensures `cleanUrls: true`, cache headers (`no-cache` for `index.html` and `sw.js`, 1-year immutable caching for `/assets`).
-
----
-
-## 6. Project Structure
-
-```
-├── demo/
-│   ├── index.html                 # Entrypoint shell & accessible landmarks
-│   ├── manifest.webmanifest       # PWA Web App Manifest
-│   ├── sw.js                      # Service Worker offline shell cache
-│   ├── vercel.json                # Vercel static deployment configuration
-│   ├── CONTRAST.md                # WCAG 2.2 AA Contrast Compliance Audit
-│   ├── ICON-RULES.md              # RTL Icon & Cultural Sensitivity Guide
-│   ├── TESTING-TEMPLATE.md        # Blank Usability Testing Protocol Template
-│   ├── QA-REPORT.md               # Cross-Device QA Test Report
-│   ├── assets/
-│   │   ├── logo.svg               # Vector brand logo
-│   │   ├── hero.png               # High-res train illustration
-│   │   ├── icon-192.png           # PWA 192px app icon
-│   │   ├── icon-512.png           # PWA 512px app icon
-│   │   └── apple-touch-icon.png   # iOS touch icon
-│   ├── css/
-│   │   ├── tokens.css             # Theme variables, WCAG colors, typography
-│   │   ├── base.css               # Reset, transitions, safe areas, skip link
-│   │   ├── components.css         # Cards, buttons, sheets, inputs, skeletons
-│   │   └── screens.css            # Welcome, timeline, settings, design system
-│   └── js/
-│       ├── app.js                 # Main UI controller & state engine
-│       ├── i18n.js                # Translations & live language switcher
-│       ├── router.js              # Hash client router
-│       ├── data.js                # Localized Bangalore corridor data
-│       └── icons.js               # SVG icon library & mirroring metadata
-├── design/
-│   └── screenshots/               # 30 full-page 390px mobile QA screenshots
-└── tools/
-    ├── capture_stage2_screenshots.py
-    └── cross_device_qa.py
-```
-
+Open `http://localhost:8000` in your web browser.
