@@ -315,13 +315,30 @@ function renderWelcomeScreen(lang) {
                 <span class="lang-card-name" lang="${item.code}">${item.nativeName}</span>
                 <span class="lang-card-welcome" lang="${item.code}">${item.welcome}</span>
               </div>
+              ${item.code === lang ? `<span class="lang-check-badge" aria-hidden="true">${getIcon('check')}</span>` : ''}
             </button>
           `).join('')}
+        </div>
+
+        <div class="direction-indicator-pill" role="note" aria-label="${t('interfaceDirection')}">
+          <div class="dir-group">
+            <span>LTR →</span>
+            <span class="dir-tag">EN</span>
+            <span class="dir-tag">HI</span>
+            <span class="dir-tag">KN</span>
+          </div>
+          <span class="dir-divider" aria-hidden="true">|</span>
+          <div class="dir-group">
+            <span>← RTL</span>
+            <span class="dir-tag">UR</span>
+          </div>
         </div>
 
         <button type="button" class="btn-primary" id="btn-welcome-continue">
           ${t('continue')}
         </button>
+
+        <p class="welcome-footer-sub">${t('langCanChange')}</p>
       </section>
     </div>
   `;
@@ -332,7 +349,6 @@ function renderHomeScreen(params, lang) {
   const isDenied = params.state === 'denied';
   const hasError = state.formError || params.state === 'error';
   const recentSearches = getRecentSearches();
-  const favourites = getFavourites();
 
   const isFromOpen = state.activeCombobox === 'from';
   const isToOpen = state.activeCombobox === 'to';
@@ -446,83 +462,56 @@ function renderHomeScreen(params, lang) {
       </div>
 
       <button type="button" class="btn-primary" id="btn-search-continue">
-        <span>${t('continue')}</span>
-        <span class="route-arrow-icon mirror-rtl" aria-hidden="true">${getIcon('arrow-forward')}</span>
+        <span class="search-btn-icon" aria-hidden="true">${getIcon('search')}</span>
+        <span>${t('searchRoutes')}</span>
       </button>
     </section>
 
-    <!-- Recent Searches Section -->
-    ${recentSearches.length > 0 ? `
-      <section class="recent-searches-section" aria-labelledby="recent-searches-heading">
-        <div class="section-header">
-          <h2 id="recent-searches-heading" class="section-title">${t('recentSearches')}</h2>
-        </div>
-        <div class="chip-group-scroll">
-          ${recentSearches.map(item => `
-            <button type="button" class="chip-btn" data-recent-search="${item.from}:${item.to}">
-              ${renderPlace(item.from, lang)}
-              <span class="mirror-rtl" aria-hidden="true">→</span>
-              ${renderPlace(item.to, lang)}
-            </button>
-          `).join('')}
-        </div>
-      </section>
-    ` : ''}
-
-    <!-- Available Routes Section -->
-    <section class="available-routes-section" aria-labelledby="available-routes-heading">
-      <div class="section-header">
-        <h2 id="available-routes-heading" class="section-title">${t('availableRoutes')}</h2>
-        <button type="button" class="see-all-link" id="btn-see-all">
+    <!-- Recent Searches Section (Figma Matched) -->
+    <section class="recent-searches-section" aria-labelledby="recent-searches-heading">
+      <div class="recent-searches-header">
+        <h2 id="recent-searches-heading" class="recent-searches-title">${t('recentSearches')}</h2>
+        <button type="button" class="recent-see-all" id="btn-see-all">
           <span>${t('seeAll')}</span>
-          ${getIcon('arrow-see-all')}
+          <span class="mirror-rtl" aria-hidden="true">${getIcon('arrow-see-all')}</span>
         </button>
       </div>
 
-      <div class="quick-routes-list">
-        <div class="route-card" data-route-pair="hebbal:mgRoad" tabindex="0" role="button" aria-label="${getPlaceName('hebbal', lang)} ${t('to')} ${getPlaceName('mgRoad', lang)}">
-          <div class="route-card-main">
-            <div class="route-icon-badge">${getIcon('bus')}</div>
-            <div class="route-info">
-              <span class="route-endpoints">
-                ${renderPlace('hebbal', lang)}
-                <span class="sr-only"> ${t('to')} </span>
-                <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
-                ${renderPlace('mgRoad', lang)}
-              </span>
+      <div class="recent-searches-list">
+        <div class="recent-search-row" data-recent-search="majestic:whitefield" tabindex="0" role="button" aria-label="${getPlaceName('majestic', lang)} ${t('to')} ${getPlaceName('whitefield', lang)}">
+          <div class="recent-search-lead">
+            <div class="recent-search-icon" aria-hidden="true">${getIcon('clock')}</div>
+            <div class="recent-search-endpoints">
+              ${renderPlace('majestic', lang)}
+              <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
+              ${renderPlace('whitefield', lang)}
             </div>
           </div>
-          ${getIcon('chevron-forward')}
+          <div class="recent-search-chevron">${getIcon('chevron-forward')}</div>
         </div>
 
-        <div class="route-card" data-route-pair="majestic:krPuram" tabindex="0" role="button" aria-label="${getPlaceName('majestic', lang)} ${t('to')} ${getPlaceName('krPuram', lang)}">
-          <div class="route-card-main">
-            <div class="route-icon-badge">${getIcon('metro')}</div>
-            <div class="route-info">
-              <span class="route-endpoints">
-                ${renderPlace('majestic', lang)}
-                <span class="sr-only"> ${t('to')} </span>
-                <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
-                ${renderPlace('krPuram', lang)}
-              </span>
+        <div class="recent-search-row" data-recent-search="hebbal:majestic" tabindex="0" role="button" aria-label="${getPlaceName('hebbal', lang)} ${t('to')} ${getPlaceName('majestic', lang)}">
+          <div class="recent-search-lead">
+            <div class="recent-search-icon" aria-hidden="true">${getIcon('clock')}</div>
+            <div class="recent-search-endpoints">
+              ${renderPlace('hebbal', lang)}
+              <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
+              ${renderPlace('majestic', lang)}
             </div>
           </div>
-          ${getIcon('chevron-forward')}
+          <div class="recent-search-chevron">${getIcon('chevron-forward')}</div>
         </div>
 
-        <div class="route-card" data-route-pair="silkboard:whitefield" tabindex="0" role="button" aria-label="${getPlaceName('silkboard', lang)} ${t('to')} ${getPlaceName('whitefield', lang)}">
-          <div class="route-card-main">
-            <div class="route-icon-badge">${getIcon('bus')}</div>
-            <div class="route-info">
-              <span class="route-endpoints">
-                ${renderPlace('silkboard', lang)}
-                <span class="sr-only"> ${t('to')} </span>
-                <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
-                ${renderPlace('whitefield', lang)}
-              </span>
+        <div class="recent-search-row" data-recent-search="silkboard:whitefield" tabindex="0" role="button" aria-label="${getPlaceName('silkboard', lang)} ${t('to')} ${getPlaceName('whitefield', lang)}">
+          <div class="recent-search-lead">
+            <div class="recent-search-icon" aria-hidden="true">${getIcon('clock')}</div>
+            <div class="recent-search-endpoints">
+              ${renderPlace('silkboard', lang)}
+              <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
+              ${renderPlace('whitefield', lang)}
             </div>
           </div>
-          ${getIcon('chevron-forward')}
+          <div class="recent-search-chevron">${getIcon('chevron-forward')}</div>
         </div>
       </div>
     </section>
@@ -730,47 +719,29 @@ function renderResultsScreen(params, lang) {
   `;
 }
 
-// 4. ROUTE DETAILS SCREEN with Save, Share, Live Timeline & CTA
+// 4. ROUTE DETAILS SCREEN with 3-Column Metrics & Connected Orange Timeline
 function renderRouteDetailsScreen(routeId, lang) {
   const route = getRouteById(routeId);
   const iconName = route.mode === 'metro' ? 'metro' : 'bus';
   const isSaved = isFavourite(route.id);
-  const departures = route.departureTimes || [new Date(), new Date(Date.now() + 600000), new Date(Date.now() + 1200000)];
 
   return `
-    <h1 class="sr-only">${t('stopsTimeline')}</h1>
+    <h1 class="sr-only">${t('routeDetails')}</h1>
     <div class="details-summary-card">
       <div class="details-summary-head">
         <div class="route-card-lead">
           <div class="route-mode-tile">${getIcon(iconName)}</div>
-          <span class="details-route-code"><bdi>${route.code}</bdi></span>
+          <div>
+            <span class="details-route-code"><bdi>${route.code}</bdi></span>
+            <div class="details-endpoints">
+              ${renderPlace(route.from, lang)}
+              <span class="sr-only"> ${t('to')} </span>
+              <span aria-hidden="true">${getIcon('arrow-forward')}</span>
+              ${renderPlace(route.to, lang)}
+            </div>
+          </div>
         </div>
-        <div class="live-departure-chip">
-          <span class="live-dot" aria-hidden="true"></span>
-          <span>${t('liveBadge')} • ${route.nextDeparture || '4 min'}</span>
-        </div>
-      </div>
-
-      <div class="details-endpoints">
-        ${renderPlace(route.from, lang)}
-        <span class="sr-only"> ${t('to')} </span>
-        <span aria-hidden="true">${getIcon('arrow-forward')}</span>
-        ${renderPlace(route.to, lang)}
-      </div>
-
-      <div class="details-metrics-row">
-        <span class="info-chip">
-          ${getIcon('clock')}
-          <span>${formatMinutes(route.durationMin, lang)}</span>
-        </span>
-        <span class="info-chip">
-          ${getIcon('pin-dot')}
-          <span>${formatStops(route.stopsCount, lang)}</span>
-        </span>
-        <span class="info-chip chip-fare">
-          ${getIcon('ticket')}
-          <span>${formatFare(route.fare, lang)}</span>
-        </span>
+        <img src="assets/hero.png" alt="TransitOne train" class="pair-banner-art" style="inline-size:74px; block-size:auto; border-radius:8px;" />
       </div>
 
       <!-- Save & Share Action Buttons -->
@@ -786,45 +757,51 @@ function renderRouteDetailsScreen(routeId, lang) {
       </div>
     </div>
 
-    <!-- Upcoming Departures Bar -->
-    <div class="departures-card">
-      <h2 class="timeline-title">${t('departuresTimeline')}</h2>
-      <div class="departures-list">
-        ${departures.map((d, i) => `
-          <div class="departure-pill">
-            <span class="departure-pill-time">${formatTime(d, lang)}</span>
-            <span class="departure-pill-rel">${formatMinutes((i + 1) * 7, lang)}</span>
-          </div>
-        `).join('')}
+    <!-- 3-Column Metric Cards Row matching Figma -->
+    <div class="details-metrics-grid">
+      <div class="metric-box">
+        <div class="metric-box-icon" aria-hidden="true">${getIcon('clock')}</div>
+        <span class="metric-box-value">${formatMinutes(route.durationMin, lang)}</span>
+        <span class="metric-box-label">${t('durationLabel')}</span>
+      </div>
+      <div class="metric-box">
+        <div class="metric-box-icon" aria-hidden="true">${getIcon('ticket')}</div>
+        <span class="metric-box-value">${formatFare(route.fare, lang)}</span>
+        <span class="metric-box-label">${t('fareLabel')}</span>
+      </div>
+      <div class="metric-box">
+        <div class="metric-box-icon" aria-hidden="true">${getIcon('clock')}</div>
+        <span class="metric-box-value">${route.nextDeparture || '10:05 AM'}</span>
+        <span class="metric-box-label">${t('departureLabel')}</span>
       </div>
     </div>
 
-    <!-- Vertical Timeline with logical properties -->
+    <!-- Continuous Connected Orange Vertical Timeline -->
     <div class="timeline-card">
-      <h2 class="timeline-title">${t('stopsTimeline')}</h2>
+      <h2 class="timeline-title">${t('stopsCountTitle')} (${route.stops.length})</h2>
       <div class="stops-timeline" aria-label="${t('stopsTimeline')}">
-        ${route.stops.map((stop, idx) => {
-          const isFirst = idx === 0;
-          const isLast = idx === route.stops.length - 1;
-          const itemClass = isFirst ? 'first' : isLast ? 'last' : '';
+        ${route.stops.map((stop) => {
           const stopName = stop.name[lang] || stop.name.en;
           return `
-            <div class="stop-item ${itemClass}">
+            <div class="stop-item">
               <div class="stop-dot"></div>
               <span class="stop-name"><bdi>${stopName}</bdi></span>
-              <span class="stop-time">${stop.time}</span>
+              <span class="stop-time-badge">${stop.time}</span>
             </div>
           `;
         }).join('')}
       </div>
     </div>
 
-    <button type="button" class="btn-primary" id="btn-details-buy-ticket" data-route-id="${route.id}" style="margin-block-end:var(--space-12);">
-      ${t('buyTicket')} • ${formatFare(route.fare, lang)}
+    <!-- Solid Orange Search Again CTA Button matching Figma -->
+    <button type="button" class="btn-primary" id="btn-details-search-again">
+      <span class="mirror-rtl" aria-hidden="true">${getIcon('refresh')}</span>
+      <span>${t('searchAgain')}</span>
     </button>
 
-    <button type="button" class="btn-secondary" id="btn-details-search-again">
-      ${t('searchAgain')}
+    <button type="button" class="btn-secondary" id="btn-details-buy-ticket" data-route-id="${route.id}" style="margin-block-end:var(--space-12);">
+      ${getIcon('ticket')}
+      <span>${t('buyTicket')} • ${formatFare(route.fare, lang)}</span>
     </button>
   `;
 }

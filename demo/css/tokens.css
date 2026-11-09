@@ -2,7 +2,7 @@
   /* Brand & Theme Colors */
   --color-brand-orange: #FF8A00;
   --color-orange-tint: #FFE3C2;
-  --color-nav-pill: #FDD5A8;
+  --color-nav-pill: #FFF0E6;
   --color-chip-bg: #F9DDD8;
   --color-page-bg: #F7F9FC;
   --color-surface: #FFFFFF;
@@ -10,9 +10,9 @@
   --color-border: #E2E8F0;
   --color-border-focus: #FF8A00;
   
-  /* Text Colors - Note: Text on orange fills is strictly dark #1F2937 (WCAG AA 6.3:1) */
+  /* Text Colors - High contrast white on brand orange #FF8A00 for primary action buttons */
   --color-text: #1F2937;
-  --color-text-on-orange: #1F2937;
+  --color-text-on-orange: #FFFFFF;
   --color-text-muted: #5B6573;
   --color-error: #B42318;
   --color-error-bg: #FEF3F2;

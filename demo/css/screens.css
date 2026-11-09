@@ -48,57 +48,86 @@
   margin-block-end: var(--space-16);
 }
 
-/* 2x2 Language Selection Grid
-   Selected = solid orange with dark text (#1F2937);
-   Unselected = white with orange border */
+/* 2x2 Language Selection Grid matching Figma
+   Selected = white card with 2px solid orange border, orange globe in peach circle, checkmark badge
+   Unselected = white card with subtle grey border */
 .lang-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-12);
   inline-size: 100%;
-  margin-block-end: var(--space-24);
+  margin-block-end: var(--space-16);
 }
 
 .lang-card-option {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-12);
   background-color: var(--color-surface);
-  border: 2px solid var(--color-brand-orange);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding-block: var(--space-12);
+  padding-block: var(--space-14);
   padding-inline: var(--space-12);
-  min-block-size: 64px;
+  min-block-size: 72px;
   cursor: pointer;
   text-align: start;
   transition: all 0.2s ease;
   user-select: none;
   color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .lang-card-option:hover,
 .lang-card-option:focus-visible,
 .lang-card-option.is-hover {
-  background-color: var(--color-orange-tint);
+  border-color: var(--color-brand-orange);
+  background-color: var(--color-surface-hover);
 }
 
 .lang-card-option.selected {
-  background-color: var(--color-brand-orange);
-  color: var(--color-text-on-orange);
-  border-color: var(--color-brand-orange);
-  box-shadow: 0 4px 12px rgba(255, 138, 0, 0.25);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 2px solid var(--color-brand-orange);
+  box-shadow: 0 4px 14px rgba(255, 138, 0, 0.16);
 }
 
 .lang-card-icon {
-  inline-size: 32px;
-  block-size: 32px;
+  inline-size: 36px;
+  block-size: 36px;
   border-radius: var(--radius-pill);
-  background-color: rgba(0, 0, 0, 0.06);
+  background-color: #F1F5F9;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: currentColor;
+  color: #475569;
+  transition: all 0.2s ease;
+}
+
+.lang-card-option.selected .lang-card-icon {
+  background-color: var(--color-nav-pill);
+  color: var(--color-brand-orange);
+}
+
+.lang-check-badge {
+  position: absolute;
+  inset-block-start: var(--space-8);
+  inset-inline-end: var(--space-8);
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand-orange);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lang-check-badge svg {
+  inline-size: 13px;
+  block-size: 13px;
+  stroke-width: 3;
 }
 
 .lang-card-texts {
@@ -109,15 +138,59 @@
 .lang-card-name {
   font-size: var(--font-size-body);
   font-weight: 700;
-  color: currentColor;
+  color: var(--color-text);
   line-height: 1.2;
 }
 
 .lang-card-welcome {
   font-size: var(--font-size-caption);
-  color: currentColor;
-  opacity: 0.85;
+  color: var(--color-text-muted);
   line-height: 1.2;
+}
+
+/* Interface Direction Indicator Pill */
+.direction-indicator-pill {
+  inline-size: 100%;
+  background-color: var(--color-nav-pill);
+  border: 1px solid rgba(255, 138, 0, 0.25);
+  border-radius: var(--radius-input);
+  padding-block: var(--space-8);
+  padding-inline: var(--space-12);
+  margin-block-end: var(--space-20);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.dir-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.dir-tag {
+  background-color: rgba(255, 138, 0, 0.2);
+  color: var(--color-brand-orange);
+  font-size: 11px;
+  font-weight: 700;
+  padding-block: 2px;
+  padding-inline: 6px;
+  border-radius: 4px;
+}
+
+.dir-divider {
+  color: rgba(0, 0, 0, 0.2);
+  font-weight: 300;
+}
+
+.welcome-footer-sub {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-block-start: var(--space-12);
 }
 
 /* ====================================================
@@ -174,12 +247,54 @@
   color: var(--color-text);
 }
 
-/* Vertical Timeline using Logical Properties */
+/* 3-Column Metric Cards Grid matching Figma */
+.details-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  margin-block-end: var(--space-16);
+}
+
+.metric-box {
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding-block: var(--space-12);
+  padding-inline: var(--space-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.metric-box-icon {
+  color: var(--color-brand-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-box-value {
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.metric-box-label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+
+/* Continuous Connected Solid Orange Vertical Timeline */
 .timeline-card {
   background-color: var(--color-surface);
   border-radius: var(--radius-card);
   padding: var(--space-16);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   box-shadow: var(--shadow-card);
   margin-block-end: var(--space-16);
 }
@@ -194,36 +309,29 @@
 .stops-timeline {
   display: flex;
   flex-direction: column;
-  padding-inline-start: var(--space-12);
-  border-inline-start: 2px dashed var(--color-border);
+  gap: var(--space-16);
+  padding-inline-start: 24px;
+  margin-inline-start: 8px;
+  border-inline-start: 3px solid var(--color-brand-orange);
   position: relative;
+  padding-block: var(--space-8);
 }
 
 .stop-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-block: var(--space-10);
-  padding-inline-start: var(--space-16);
   position: relative;
 }
 
 .stop-dot {
   position: absolute;
-  inset-inline-start: -7px;
-  inline-size: 12px;
-  block-size: 12px;
+  inset-inline-start: -32.5px;
+  inline-size: 14px;
+  block-size: 14px;
   border-radius: var(--radius-pill);
-  background-color: var(--color-brand-orange);
-  box-shadow: 0 0 0 3px var(--color-surface);
-}
-
-.stop-item.first .stop-dot,
-.stop-item.last .stop-dot {
-  inline-size: 16px;
-  block-size: 16px;
-  inset-inline-start: -9px;
-  background-color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 3px solid var(--color-brand-orange);
 }
 
 .stop-name {
@@ -232,10 +340,39 @@
   color: var(--color-text);
 }
 
-.stop-time {
+.stop-time-badge {
+  background-color: var(--color-nav-pill);
+  color: var(--color-brand-orange);
   font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-  font-weight: 600;
+  font-weight: 700;
+  padding-block: 2px;
+  padding-inline: var(--space-8);
+  border-radius: var(--radius-input);
+}
+
+#btn-details-search-again {
+  background-color: var(--color-brand-orange);
+  color: #FFFFFF;
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-button);
+  box-shadow: 0 4px 14px rgba(255, 138, 0, 0.32);
+  min-block-size: 52px;
+  inline-size: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  cursor: pointer;
+  margin-block-end: var(--space-12);
+  transition: all 0.2s ease;
+}
+
+#btn-details-search-again:hover,
+#btn-details-search-again:focus-visible {
+  filter: brightness(1.05);
+  transform: translateY(-1.5px);
 }
 
 /* ====================================================
@@ -312,7 +449,7 @@
 }
 
 .lang-radio-item.selected {
-  background-color: var(--color-orange-tint);
+  background-color: var(--color-nav-pill);
   border-color: var(--color-brand-orange);
 }
 
@@ -345,21 +482,119 @@
 }
 
 .radio-indicator {
-  inline-size: 20px;
-  block-size: 20px;
+  inline-size: 22px;
+  block-size: 22px;
   border-radius: var(--radius-pill);
-  border: 2px solid var(--color-border);
+  border: 2px solid #CBD5E1;
   background-color: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .lang-radio-item.selected .radio-indicator {
   border-color: var(--color-brand-orange);
+  background-color: var(--color-surface);
+}
+
+.lang-radio-item.selected .radio-indicator::after {
+  content: "";
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--radius-pill);
   background-color: var(--color-brand-orange);
-  box-shadow: inset 0 0 0 3px var(--color-surface);
+}
+
+/* Recent Searches Section matching Figma */
+.recent-searches-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: var(--space-12);
+}
+
+.recent-searches-title {
+  font-size: var(--font-size-sub);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.recent-see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  color: var(--color-brand-orange);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-4);
+}
+
+.recent-see-all:hover,
+.recent-see-all:focus-visible {
+  text-decoration: underline;
+}
+
+.recent-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding-block: var(--space-12);
+  padding-inline: var(--space-14);
+  margin-block-end: var(--space-8);
+  min-block-size: 52px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.recent-search-row:hover,
+.recent-search-row:focus-visible {
+  border-color: var(--color-brand-orange);
+  background-color: var(--color-surface-hover);
+  transform: translateY(-1px);
+}
+
+.recent-search-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.recent-search-icon {
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-nav-pill);
+  color: var(--color-brand-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recent-search-endpoints {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.recent-search-chevron {
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Settings Toggle Rows */
