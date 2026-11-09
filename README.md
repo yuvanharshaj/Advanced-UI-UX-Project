@@ -10,6 +10,7 @@
 TransitOne is an ultra-fast, zero-dependency multilingual transit web prototype engineered for commuter corridors. Built using pure vanilla web standards (HTML5, CSS Logical Properties, and ES Modules), TransitOne demonstrates that modern CSS and semantic HTML can support complex multilingual layouts without frameworks, bundlers, build steps, or CDNs.
 
 - **WCAG Conformance**: WCAG 2.2 Level AA Compliant (Text contrast >= 6.21:1 on brand orange fills, 3px high-contrast focus rings, 44×44px minimum touch targets).
+- **Project Documentation**: [Project Report PDF](docs/Project%20Report%20on-Unified%20RTL%20and%20Indic%20Design%20System-Yuvan%20Harshaj%20%5B1EP24CS181%5D.pdf) (Complete 39-page comprehensive project report with Certificate, specifications, and evaluation).
 - **Zero-Dependency**: 100% static ES modules; static-hostable on Vercel, Netlify, or GitHub Pages.
 - **Offline / PWA**: Full Service Worker v2 app-shell caching with offline detection and Web App Manifest.
 
