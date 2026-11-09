@@ -116,3 +116,4 @@ export function formatRelativeCountdown(minutes, lang = getCurrentLanguage()) {
     return `in ${minutes} min`;
   }
 }
+

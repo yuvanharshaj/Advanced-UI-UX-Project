@@ -62,3 +62,4 @@ A singular, coherent design system architecture tailored for multilingual public
 - **Route Cards**: High-speed transit cards displaying mode badge, corridor path, live countdown chip, duration, stops, and fare.
 - **Timeline**: Accessible vertical timeline illustrating ordered stops with dynamic timestamps.
 - **Ticket Pass**: Digital transit pass with 2D QR matrix barcode and traveler details.
+
