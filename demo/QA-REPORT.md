@@ -45,3 +45,4 @@
    - *Fix*: Added `scroll-padding-bottom: 88px` on `html` so keyboard focus scrolling always leaves space above the nav.
 5. **Bug**: Missing skip-link landmark for keyboard users.
    - *Fix*: Added `<a href="#main-content" class="skip-link">Skip to content</a>` with high-contrast focus indicator.
+

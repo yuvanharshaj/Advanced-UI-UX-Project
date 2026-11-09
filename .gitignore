@@ -1,0 +1,20 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment & IDE
+.env
+.env.local
+.vscode/
+.idea/
+

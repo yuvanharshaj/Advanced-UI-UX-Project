@@ -33,3 +33,4 @@
 | | Task 3: Open route details | | | | | |
 | | Task 4: Change language from Settings | | | | | |
 | | Task 5: Turn on Larger text | | | | | |
+

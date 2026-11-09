@@ -39,3 +39,4 @@
 4. **Color-Only State Communication**:
    - *Risk*: Fails accessibility for red-green color blindness; color associations vary across cultures.
    - *Alternative*: Always pair color changes with text labels, icons (e.g. checkmark for success, exclamation circle for error), and ARIA announcements.
+
