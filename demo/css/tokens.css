@@ -46,6 +46,10 @@
   --line-height-kn: 1.75;
   --line-height-ur: 1.8;
   
+  /* Font Metrics Overrides for Indic Conjuncts & RTL Descenders */
+  --script-scale: 1.0;
+  --descender-pad: 0.15em;
+  
   /* Shadows */
   --shadow-shell: 0 12px 32px rgba(15, 23, 42, 0.08);
   --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.04);
@@ -66,7 +70,29 @@
   --transition-slide-duration: 175ms;
 }
 
-/* Larger-text mode (root font-size 125%) */
+/* Script-specific metrics tuning to prevent clipping of matras and ottu */
+html[lang="hi"] {
+  --line-height-current: var(--line-height-hi);
+  --script-scale: 1.04;
+}
+
+html[lang="kn"] {
+  --line-height-current: var(--line-height-kn);
+  --script-scale: 1.06;
+}
+
+html[lang="ur"] {
+  --line-height-current: var(--line-height-ur);
+  --script-scale: 1.05;
+}
+
+/* Text Size Scaler */
+html.size-sm { font-size: 87.5%; }
+html.size-md { font-size: 100%; }
+html.size-lg { font-size: 115%; }
+html.size-xl { font-size: 130%; }
+
+/* Larger-text mode fallback (root font-size 125%) */
 html.larger-text {
   font-size: 125%;
 }
@@ -86,4 +112,19 @@ html.high-contrast {
   --color-orange-tint: #FED7AA;
   --color-brand-orange: #B54A00; /* Darker orange for WCAG AAA/AA 4.8:1 with white */
   --focus-ring-outline: 3px solid #000000;
+}
+
+/* Reduce Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+html.reduce-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }

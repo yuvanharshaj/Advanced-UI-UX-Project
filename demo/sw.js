@@ -1,9 +1,10 @@
 /**
- * TransitOne - Service Worker
+ * TransitOne - Service Worker v2
  * App Shell Caching & Offline Capabilities
+ * Unified RTL and Indic Design System
  */
 
-const CACHE_NAME = 'transitone-shell-v1';
+const CACHE_NAME = 'transitone-shell-v2';
 
 const SHELL_ASSETS = [
   './',
@@ -18,6 +19,8 @@ const SHELL_ASSETS = [
   './js/data.js',
   './js/icons.js',
   './js/router.js',
+  './js/intl-helpers.js',
+  './js/storage.js',
   './assets/logo.svg',
   './assets/hero.png',
   './assets/icon-192.png',
@@ -84,4 +87,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-
