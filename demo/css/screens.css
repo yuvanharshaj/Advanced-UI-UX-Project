@@ -148,20 +148,34 @@
   line-height: 1.2;
 }
 
-/* Interface Direction Indicator Pill */
+/* Interface Direction Indicator Box matching Figma */
+.direction-indicator-box,
 .direction-indicator-pill {
   inline-size: 100%;
   background-color: var(--color-nav-pill);
   border: 1px solid rgba(255, 138, 0, 0.25);
-  border-radius: var(--radius-input);
-  padding-block: var(--space-8);
-  padding-inline: var(--space-12);
+  border-radius: var(--radius-card);
+  padding-block: var(--space-10);
+  padding-inline: var(--space-14);
   margin-block-end: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  text-align: start;
+}
+
+.direction-indicator-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.direction-indicator-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
 }
 

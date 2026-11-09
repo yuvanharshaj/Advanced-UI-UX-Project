@@ -53,11 +53,7 @@ export function parseHash() {
 }
 
 export function getDefaultRoute() {
-  const savedLang = getStoredLanguage();
-  if (!savedLang) {
-    return 'welcome';
-  }
-  return 'home';
+  return 'welcome';
 }
 
 export function navigate(route, params = {}) {

@@ -320,17 +320,20 @@ function renderWelcomeScreen(lang) {
           `).join('')}
         </div>
 
-        <div class="direction-indicator-pill" role="note" aria-label="${t('interfaceDirection')}">
-          <div class="dir-group">
-            <span>LTR →</span>
-            <span class="dir-tag">EN</span>
-            <span class="dir-tag">HI</span>
-            <span class="dir-tag">KN</span>
-          </div>
-          <span class="dir-divider" aria-hidden="true">|</span>
-          <div class="dir-group">
-            <span>← RTL</span>
-            <span class="dir-tag">UR</span>
+        <div class="direction-indicator-box" role="note" aria-label="${t('interfaceDirection')}">
+          <span class="direction-indicator-title">${t('interfaceDirection')}</span>
+          <div class="direction-indicator-row">
+            <div class="dir-group">
+              <span>LTR →</span>
+              <span class="dir-tag">EN</span>
+              <span class="dir-tag">HI</span>
+              <span class="dir-tag">KN</span>
+            </div>
+            <span class="dir-divider" aria-hidden="true">|</span>
+            <div class="dir-group">
+              <span>← RTL</span>
+              <span class="dir-tag">UR</span>
+            </div>
           </div>
         </div>
 
@@ -2068,7 +2071,11 @@ function init() {
     renderApp();
   });
 
-  renderApp();
+  if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
+    window.location.hash = '#/welcome';
+  } else {
+    renderApp();
+  }
 }
 
 window.applyLanguage = applyLanguage;
