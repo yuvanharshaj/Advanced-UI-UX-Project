@@ -1,38 +1,41 @@
 /**
- * TransitOne - SVG Icons Dictionary
- * 
- * ============================================================================
- * RTL ICON MIRRORING SPECIFICATION
- * ============================================================================
- * 
- * MIRROR in RTL (add class 'mirror-rtl'):
- *  - back arrow (arrow-back)
- *  - forward chevrons (chevron-forward, chevron-right)
- *  - From->To route arrow (arrow-forward)
- *  - "See all" arrow (arrow-see-all)
- * 
- * DO NOT mirror in RTL:
- *  - globe
- *  - search
- *  - home
- *  - settings
- *  - clock
- *  - pin
- *  - swap up/down (swap-vertical)
- *  - accessibility
- *  - info
- *  - bus
- *  - metro
- *  - rupee
- *  - ticket
- *  - check
- *  - alert-circle
- *  - wifi-off
- *  - star / star-filled
- *  - share
- *  - qr-code
- * ============================================================================
+ * TransitOne - Unified SVG Icon Registry & Sprite Helpers
+ * Single source of truth for 24px grid iconography and RTL mirroring behavior.
  */
+
+export const ICON_REGISTRY = [
+  // Directional Icons (Mirrored in RTL)
+  { id: 'arrow-back', mirror: true, category: 'navigation', desc: 'Back navigation arrow', culturalNote: 'Mirrored in RTL to follow reverse chronological reading direction.' },
+  { id: 'chevron-forward', mirror: true, category: 'navigation', desc: 'Forward drill-down chevron', culturalNote: 'Mirrored in RTL to indicate drill-down progression.' },
+  { id: 'arrow-forward', mirror: true, category: 'navigation', desc: 'Corridor origin-to-destination arrow', culturalNote: 'Mirrored in RTL to match right-to-left reading flow.' },
+  { id: 'arrow-see-all', mirror: true, category: 'navigation', desc: 'See all links expansion arrow', culturalNote: 'Mirrored in RTL to point towards list expansion.' },
+
+  // Symmetrical and Non-Directional Icons (Never Mirrored)
+  { id: 'globe', mirror: false, category: 'ui', desc: 'Spherical world globe', culturalNote: 'Symmetrical global geography; never flipped.' },
+  { id: 'search', mirror: false, category: 'ui', desc: 'Search magnifying glass', culturalNote: 'Universal right-handed lens orientation; convention remains consistent worldwide.' },
+  { id: 'home', mirror: false, category: 'navigation', desc: 'Home roof structure', culturalNote: 'Symmetrical architectural icon.' },
+  { id: 'settings', mirror: false, category: 'ui', desc: 'Settings mechanical gear', culturalNote: 'Symmetrical mechanical cogwheel.' },
+  { id: 'clock', mirror: false, category: 'transit', desc: 'Clock face with hour/minute hands', culturalNote: 'Physical analog clocks run clockwise in all world locales.' },
+  { id: 'pin', mirror: false, category: 'map', desc: 'Map location teardrop pin', culturalNote: 'Symmetrical vertical teardrop pointing to coordinates.' },
+  { id: 'pin-dot', mirror: false, category: 'map', desc: 'Origin map point dot', culturalNote: 'Symmetrical circular dot.' },
+  { id: 'swap-vertical', mirror: false, category: 'ui', desc: 'Vertical swap up/down arrows', culturalNote: 'Vertical exchange unaffected by horizontal script direction.' },
+  { id: 'accessibility', mirror: false, category: 'a11y', desc: 'Universal accessibility person', culturalNote: 'Symmetrical human figure for accessibility.' },
+  { id: 'info', mirror: false, category: 'ui', desc: 'Information circle badge', culturalNote: 'Universal information glyph.' },
+  { id: 'bus', mirror: false, category: 'transit', desc: 'City public transit bus', culturalNote: 'Front-facing symmetrical transit vehicle.' },
+  { id: 'metro', mirror: false, category: 'transit', desc: 'Rapid transit metro railcar', culturalNote: 'Front-facing symmetrical rail vehicle.' },
+  { id: 'ticket', mirror: false, category: 'transit', desc: 'Boarding pass with perforation', culturalNote: 'Physical transit ticket token.' },
+  { id: 'chevron-down', mirror: false, category: 'ui', desc: 'Dropdown chevron', culturalNote: 'Vertical dropdown indicator.' },
+  { id: 'close', mirror: false, category: 'ui', desc: 'Dismiss / close cross', culturalNote: 'Symmetrical dismiss cross.' },
+  { id: 'check', mirror: false, category: 'feedback', desc: 'Affirmative checkmark', culturalNote: 'Neutral confirmation; avoids offensive hand gestures.' },
+  { id: 'alert-circle', mirror: false, category: 'feedback', desc: 'Alert / warning indicator', culturalNote: 'Clear non-color-only warning badge.' },
+  { id: 'wifi-off', mirror: false, category: 'system', desc: 'Offline / disconnected indicator', culturalNote: 'Symmetrical antenna broadcast with slash.' },
+  { id: 'location-denied', mirror: false, category: 'system', desc: 'Location permission denied badge', culturalNote: 'Target crosshair with slash.' },
+  { id: 'refresh', mirror: false, category: 'ui', desc: 'Refresh / reload indicator', culturalNote: 'Standard cyclical arrow.' },
+  { id: 'star', mirror: false, category: 'saved', desc: 'Save favourite route outline', culturalNote: 'Symmetrical 5-point star.' },
+  { id: 'star-filled', mirror: false, category: 'saved', desc: 'Saved favourite route filled', culturalNote: 'Symmetrical 5-point star filled.' },
+  { id: 'share', mirror: false, category: 'ui', desc: 'Share route link nodes', culturalNote: 'Standard platform share icon.' },
+  { id: 'qr-code', mirror: false, category: 'ticket', desc: 'Digital transit gate QR code', culturalNote: '2D matrix barcode format.' }
+];
 
 export const icons = {
   // Mirrored in RTL
@@ -41,7 +44,7 @@ export const icons = {
   'arrow-forward': `<svg class="mirror-rtl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>`,
   'arrow-see-all': `<svg class="mirror-rtl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>`,
   
-  // NOT Mirrored in RTL
+  // Symmetrical and Physical Objects (Never Mirrored)
   'globe': `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
   'search': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>`,
   'home': `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
@@ -69,9 +72,17 @@ export const icons = {
 };
 
 export function getIcon(name, extraClass = '') {
+  const meta = ICON_REGISTRY.find(i => i.id === name);
+  const isMirror = meta ? meta.mirror : false;
+  const mirrorClass = isMirror ? 'mirror-rtl' : '';
+  const classes = [extraClass, mirrorClass].filter(Boolean).join(' ');
+
   const svg = icons[name] || '';
-  if (extraClass && svg) {
-    return svg.replace('<svg ', `<svg class="${extraClass}" `);
+  if (classes && svg) {
+    if (svg.includes('class="mirror-rtl"')) {
+      return svg.replace('class="mirror-rtl"', `class="${classes}"`);
+    }
+    return svg.replace('<svg ', `<svg class="${classes}" `);
   }
   return svg;
 }

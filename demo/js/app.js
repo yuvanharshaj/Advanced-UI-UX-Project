@@ -1270,6 +1270,9 @@ function renderDesignSystemPage(lang) {
             <div class="icon-item">${getIcon('bus')}<span>bus</span></div>
             <div class="icon-item">${getIcon('metro')}<span>metro</span></div>
             <div class="icon-item">${getIcon('ticket')}<span>ticket</span></div>
+            <div class="icon-item">${getIcon('star')}<span>star</span></div>
+            <div class="icon-item">${getIcon('share')}<span>share</span></div>
+            <div class="icon-item">${getIcon('qr-code')}<span>qr</span></div>
           </div>
         </div>
 
@@ -1279,13 +1282,107 @@ function renderDesignSystemPage(lang) {
             <div>• <strong>Thumbs Up</strong>: Offensive in Middle East / West Asia. Replaced by neutral checkmark ${getIcon('check')}.</div>
             <div>• <strong>Open Hand Gestures</strong>: Culturally varied. Replaced by direct textual clarity.</div>
             <div>• <strong>US Mailbox</strong>: Not understood across South Asia. Replaced by standard ticket &amp; text semantics.</div>
+            <div>• <strong>Color-Only Status Cues</strong>: Avoided; paired with shape and text.</div>
           </div>
         </div>
       </section>
 
-      <!-- Section 5: Text Expansion Stress Test -->
+      <!-- Section 5: Font Metrics Lab -->
       <section class="ds-section" aria-labelledby="ds-sec-5">
-        <h2 id="ds-sec-5" class="ds-section-title">5. Text-Expansion Stress Test (+40%)</h2>
+        <h2 id="ds-sec-5" class="ds-section-title">5. Font Metrics Lab (Baseline Rulers &amp; Complex Conjuncts)</h2>
+        <p style="font-size:var(--font-size-caption); color:var(--color-text-muted); margin-block-end:var(--space-8);">
+          Visual horizontal orange rulers demonstrate uniform baseline alignment across Latin, Devanagari, Kannada, and Nastaliq scripts without vertical clipping.
+        </p>
+
+        <div class="metrics-ruler-box" aria-label="Baseline Ruler Demonstration">
+          <span class="metrics-sample-line" lang="en">TransitOne Rapid Bus 500</span>
+          <span class="metrics-sample-line" lang="hi">मजेस्टिक से व्हाइटफील्ड तक</span>
+          <span class="metrics-sample-line" lang="kn">ಮೆಜೆಸ್ಟಿಕ್‌ನಿಂದ ವೈಟ್‌ಫೀಲ್ಡ್ ವರೆಗೆ</span>
+          <span class="metrics-sample-line" lang="ur" dir="rtl">میجسٹک سے وائٹ فیلڈ تک</span>
+        </div>
+
+        <!-- Tall glyph and conjunct stress cards -->
+        <div class="glyph-stress-grid">
+          <div class="glyph-stress-card">
+            <span class="glyph-stress-big" lang="hi">स्त्री</span>
+            <span class="glyph-stress-meta">Devanagari Stacked (stri)</span>
+          </div>
+          <div class="glyph-stress-card">
+            <span class="glyph-stress-big" lang="hi">दृष्टि</span>
+            <span class="glyph-stress-meta">Devanagari Matra (drishti)</span>
+          </div>
+          <div class="glyph-stress-card">
+            <span class="glyph-stress-big" lang="kn">ಕ್ಷ</span>
+            <span class="glyph-stress-meta">Kannada Sub-glyph (ksha)</span>
+          </div>
+          <div class="glyph-stress-card">
+            <span class="glyph-stress-big" lang="kn">ಸ್ವಾ</span>
+            <span class="glyph-stress-meta">Kannada Ottu (svaa)</span>
+          </div>
+          <div class="glyph-stress-card">
+            <span class="glyph-stress-big" lang="ur" dir="rtl">نستعلیق</span>
+            <span class="glyph-stress-meta">Urdu Descender (nastaliq)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Side-by-Side Mirroring Lab -->
+      <section class="ds-section" aria-labelledby="ds-sec-6">
+        <h2 id="ds-sec-6" class="ds-section-title">6. Bidirectional Mirroring Lab (Side-by-Side LTR vs RTL)</h2>
+        <p style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
+          Demonstrates how the same component code renders in Left-to-Right (English) and Right-to-Left (Urdu) automatically using CSS logical properties.
+        </p>
+
+        <div class="mirror-lab-grid">
+          <!-- LTR Card -->
+          <div class="mirror-lab-panel" dir="ltr" lang="en">
+            <div class="mirror-lab-header">
+              <span>LTR Mode (English)</span>
+              <span class="info-chip">DIR="LTR"</span>
+            </div>
+            <div class="route-card-main" style="margin-block-end:var(--space-8);">
+              <div class="route-icon-badge">${getIcon('metro')}</div>
+              <div class="route-info">
+                <span class="route-endpoints">
+                  <span>Majestic</span>
+                  <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
+                  <span>Whitefield</span>
+                </span>
+              </div>
+            </div>
+            <div class="route-card-footer" style="display:flex; gap:8px;">
+              <span class="info-chip">${getIcon('clock')} 38 min</span>
+              <span class="info-chip">${getIcon('ticket')} ₹30</span>
+            </div>
+          </div>
+
+          <!-- RTL Card -->
+          <div class="mirror-lab-panel" dir="rtl" lang="ur">
+            <div class="mirror-lab-header">
+              <span>RTL Mode (Urdu)</span>
+              <span class="info-chip">DIR="RTL"</span>
+            </div>
+            <div class="route-card-main" style="margin-block-end:var(--space-8);">
+              <div class="route-icon-badge">${getIcon('metro')}</div>
+              <div class="route-info">
+                <span class="route-endpoints">
+                  <span>میجسٹک</span>
+                  <span class="route-arrow-icon" aria-hidden="true">${getIcon('arrow-forward')}</span>
+                  <span>وائٹ فیلڈ</span>
+                </span>
+              </div>
+            </div>
+            <div class="route-card-footer" style="display:flex; gap:8px;">
+              <span class="info-chip">${getIcon('clock')} ۳۸ منٹ</span>
+              <span class="info-chip">${getIcon('ticket')} ₹۳۰</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7: Text Expansion Stress Test -->
+      <section class="ds-section" aria-labelledby="ds-sec-7">
+        <h2 id="ds-sec-7" class="ds-section-title">7. Text-Expansion Stress Test (+40%)</h2>
         <div class="settings-toggle-row">
           <div class="settings-toggle-info">
             <span class="settings-toggle-label">${t('textExpansion')}</span>
