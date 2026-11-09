@@ -3,8 +3,10 @@
  * Hash routes:
  *   #/welcome
  *   #/home
- *   #/results?from=&to=&state=
+ *   #/results?from=&to=&state=&mode=&sort=
  *   #/route/<id>
+ *   #/buy?routeId=<id>
+ *   #/ticket/<id>
  *   #/settings
  *   #/design-system
  */
@@ -29,11 +31,14 @@ export function parseHash() {
     }
   }
 
-  // Handle route/:id
   let route = routePart || '';
   if (route.startsWith('route/')) {
     const id = route.replace('route/', '');
     route = 'route';
+    params.id = id;
+  } else if (route.startsWith('ticket/')) {
+    const id = route.replace('ticket/', '');
+    route = 'ticket';
     params.id = id;
   }
 
@@ -59,6 +64,15 @@ export function navigate(route, params = {}) {
   let path = route;
   if (route === 'route' && params.id) {
     path = `route/${params.id}`;
+    const restParams = { ...params };
+    delete restParams.id;
+    const qs = Object.keys(restParams).length ? '?' + new URLSearchParams(restParams).toString() : '';
+    window.location.hash = `#/${path}${qs}`;
+    return;
+  }
+
+  if (route === 'ticket' && params.id) {
+    path = `ticket/${params.id}`;
     const restParams = { ...params };
     delete restParams.id;
     const qs = Object.keys(restParams).length ? '?' + new URLSearchParams(restParams).toString() : '';

@@ -20,8 +20,10 @@ import {
   PLACES,
   ROUTES_DATA,
   getPlaceName,
+  searchPlaces,
   findRoutes,
-  getRouteById
+  getRouteById,
+  calculateNextDepartures
 } from './data.js';
 
 import {
@@ -35,6 +37,30 @@ import {
   markOnboarded
 } from './router.js';
 
+import {
+  formatStops,
+  formatMinutes,
+  formatFare,
+  formatNumber,
+  formatTime,
+  formatRelativeCountdown,
+  setNumberingSystem,
+  getNumberingSystem
+} from './intl-helpers.js';
+
+import {
+  getRecentSearches,
+  addRecentSearch,
+  getFavourites,
+  isFavourite,
+  toggleFavourite,
+  getTickets,
+  saveTicket,
+  getSettings,
+  updateSettings,
+  clearAllSavedData
+} from './storage.js';
+
 // Application State
 const state = {
   selectedFrom: 'majestic',
@@ -44,17 +70,70 @@ const state = {
   aboutModalOpen: false,
   isSimulatedLoading: false,
   forcedOffline: false,
-  lastTriggerElement: null
+  lastTriggerElement: null,
+
+  // Combobox Active State
+  activeCombobox: null, // 'from' | 'to' | null
+  comboboxHighlightIndex: -1,
+  activeComboboxMatches: [],
+
+  // Results Filter & Sort State
+  modeFilter: 'all', // 'all' | 'metro' | 'bus'
+  sortFilter: 'fastest', // 'fastest' | 'cheapest' | 'stops'
+
+  // Ticket Form State
+  passengersCount: 1,
+  travelerName: '',
+  travelerPhone: '',
+  paymentMethod: 'upi',
+
+  // Toast System
+  toastMessage: null,
+  toastTimeout: null
 };
 
-// Listen to native online/offline status
-window.addEventListener('online', () => renderApp());
-window.addEventListener('offline', () => renderApp());
+// Periodic 30-second live departure refresh
+setInterval(() => {
+  const { route } = parseHash();
+  if (route === 'results' || route === 'route') {
+    renderApp();
+  }
+}, 30000);
 
-// Global Escape Key Listener for Modals / Bottom Sheets (WCAG 2.2 focus return)
+// Global Error Catching for prototype resilience
+window.addEventListener('error', (event) => {
+  console.warn('TransitOne trapped error:', event.error);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.warn('TransitOne trapped promise rejection:', event.reason);
+});
+
+// Toast notification helper
+function showToast(message) {
+  state.toastMessage = message;
+  const container = document.getElementById('toast-mount');
+  if (container) {
+    container.innerHTML = `
+      <div class="toast-message" role="status" aria-live="polite">
+        ${getIcon('check')}
+        <span>${message}</span>
+      </div>
+    `;
+  }
+  if (state.toastTimeout) clearTimeout(state.toastTimeout);
+  state.toastTimeout = setTimeout(() => {
+    state.toastMessage = null;
+    if (container) container.innerHTML = '';
+  }, 2600);
+}
+
+// Global Escape Key Listener for Modals / Bottom Sheets
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (state.langSheetOpen) {
+    if (state.activeCombobox) {
+      state.activeCombobox = null;
+      renderApp();
+    } else if (state.langSheetOpen) {
       state.langSheetOpen = false;
       renderApp();
       if (state.lastTriggerElement) state.lastTriggerElement.focus();
@@ -63,6 +142,14 @@ window.addEventListener('keydown', (e) => {
       renderApp();
       if (state.lastTriggerElement) state.lastTriggerElement.focus();
     }
+  }
+});
+
+// Document click to dismiss combobox dropdown
+document.addEventListener('click', (e) => {
+  if (state.activeCombobox && !e.target.closest('.white-input-field') && !e.target.closest('.combobox-listbox')) {
+    state.activeCombobox = null;
+    renderApp();
   }
 });
 
@@ -98,21 +185,23 @@ export function getContrastRatio(hex1, hex2) {
   }
 }
 
-// Format Station Name safely in <bdi>
-function renderPlace(placeId, lang) {
-  const name = getPlaceName(placeId, lang);
+// BDI Wrapper for Localized Place Names
+function renderPlace(placeKey, lang) {
+  const name = getPlaceName(placeKey, lang);
   return `<bdi>${name}</bdi>`;
 }
 
-// Render Header
-function renderHeader(currentRoute, lang) {
-  if (currentRoute === 'welcome') {
+// Top Bar Header
+function renderHeader(route, lang) {
+  const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === lang) || SUPPORTED_LANGUAGES[0];
+
+  if (route === 'welcome') {
     return `
       <header class="app-header" role="banner">
         <div class="brand-badge">
           <img src="assets/logo.svg" alt="TransitOne" width="36" height="36" />
           <div class="brand-info">
-            <span class="brand-name">TransitOne</span>
+            <span class="brand-name">${t('appName')}</span>
             <span class="brand-tagline">${t('tagline')}</span>
           </div>
         </div>
@@ -120,49 +209,37 @@ function renderHeader(currentRoute, lang) {
     `;
   }
 
-  if (currentRoute === 'results' || currentRoute === 'route' || currentRoute === 'settings' || currentRoute === 'design-system') {
-    let titleText = t('availableRoutes');
-    if (currentRoute === 'settings') titleText = t('navSettings');
-    if (currentRoute === 'route') titleText = t('stopsTimeline');
-    if (currentRoute === 'design-system') titleText = t('designSystem');
+  const hasBack = ['results', 'route', 'buy', 'ticket', 'design-system'].includes(route);
 
-    return `
-      <header class="app-header" role="banner">
+  return `
+    <header class="app-header" role="banner">
+      ${hasBack ? `
         <div class="header-with-back">
           <button type="button" class="back-button" id="btn-back-header" aria-label="${t('back')}">
             ${getIcon('arrow-back')}
-            <span>${titleText}</span>
+            <span>${t('back')}</span>
           </button>
-          ${renderLangChip(lang)}
+          <button type="button" class="lang-chip-btn" id="btn-open-lang-sheet" aria-haspopup="dialog" aria-label="${t('chooseLang')}: ${currentLangObj.nativeName}">
+            ${getIcon('globe')}
+            <span lang="${currentLangObj.code}">${currentLangObj.nativeName}</span>
+            ${getIcon('chevron-down')}
+          </button>
         </div>
-      </header>
-    `;
-  }
-
-  // Home Screen Top Bar
-  return `
-    <header class="app-header" role="banner">
-      <div class="brand-badge">
-        <img src="assets/logo.svg" alt="TransitOne" width="36" height="36" />
-        <div class="brand-info">
-          <span class="brand-name">TransitOne</span>
-          <span class="brand-tagline">${t('tagline')}</span>
+      ` : `
+        <div class="brand-badge">
+          <img src="assets/logo.svg" alt="TransitOne" width="36" height="36" />
+          <div class="brand-info">
+            <span class="brand-name">${t('appName')}</span>
+            <span class="brand-tagline">${t('tagline')}</span>
+          </div>
         </div>
-      </div>
-      ${renderLangChip(lang)}
+        <button type="button" class="lang-chip-btn" id="btn-open-lang-sheet" aria-haspopup="dialog" aria-label="${t('chooseLang')}: ${currentLangObj.nativeName}">
+          ${getIcon('globe')}
+          <span lang="${currentLangObj.code}">${currentLangObj.nativeName}</span>
+          ${getIcon('chevron-down')}
+        </button>
+      `}
     </header>
-  `;
-}
-
-// Pink-tinted Language Chip at inline-end
-function renderLangChip(lang) {
-  const curr = SUPPORTED_LANGUAGES.find(l => l.code === lang) || SUPPORTED_LANGUAGES[0];
-  return `
-    <button type="button" class="lang-chip-btn" id="btn-open-lang-sheet" aria-haspopup="dialog" aria-expanded="${state.langSheetOpen ? 'true' : 'false'}" aria-label="${t('language')}: ${curr.nativeName}">
-      ${getIcon('globe')}
-      <span lang="${curr.code}">${curr.nativeName}</span>
-      ${getIcon('chevron-down')}
-    </button>
   `;
 }
 
@@ -171,32 +248,34 @@ function renderOfflineBanner() {
   const isOffline = !navigator.onLine || state.forcedOffline;
   if (!isOffline) return '';
   return `
-    <div class="offline-banner" role="status" aria-live="assertive">
-      ${getIcon('wifi-off')}
-      <span>${t('offlineBanner')}</span>
+    <div class="offline-banner" role="alert" aria-live="assertive">
+      <div class="offline-banner-content">
+        ${getIcon('wifi-off')}
+        <span>${t('offlineBanner')}</span>
+      </div>
     </div>
   `;
 }
 
-// Bottom Navigation
-function renderBottomNav(currentRoute) {
-  if (currentRoute === 'welcome') return '';
+// Fixed Bottom Navigation
+function renderBottomNav(route) {
+  if (route === 'welcome') return '';
 
-  const isHome = currentRoute === 'home';
-  const isSearch = currentRoute === 'results' || currentRoute === 'route';
-  const isSettings = currentRoute === 'settings' || currentRoute === 'design-system';
+  const isHome = route === 'home';
+  const isResults = route === 'results' || route === 'route' || route === 'buy' || route === 'ticket';
+  const isSettings = route === 'settings' || route === 'design-system';
 
   return `
     <nav class="bottom-nav" aria-label="Main Navigation">
-      <button type="button" class="nav-tab ${isHome ? 'active' : ''}" data-nav="home" aria-current="${isHome ? 'page' : 'false'}">
+      <button type="button" class="nav-item ${isHome ? 'active' : ''}" data-nav="home" aria-current="${isHome ? 'page' : 'false'}">
         ${getIcon('home')}
         <span>${t('navHome')}</span>
       </button>
-      <button type="button" class="nav-tab ${isSearch ? 'active' : ''}" data-nav="search" aria-current="${isSearch ? 'page' : 'false'}">
+      <button type="button" class="nav-item ${isResults ? 'active' : ''}" data-nav="search" aria-current="${isResults ? 'page' : 'false'}">
         ${getIcon('search')}
         <span>${t('navSearch')}</span>
       </button>
-      <button type="button" class="nav-tab ${isSettings ? 'active' : ''}" data-nav="settings" aria-current="${isSettings ? 'page' : 'false'}">
+      <button type="button" class="nav-item ${isSettings ? 'active' : ''}" data-nav="settings" aria-current="${isSettings ? 'page' : 'false'}">
         ${getIcon('settings')}
         <span>${t('navSettings')}</span>
       </button>
@@ -248,11 +327,19 @@ function renderWelcomeScreen(lang) {
   `;
 }
 
-// 2. HOME SCREEN
+// 2. HOME SCREEN with ARIA 1.2 Combobox, Recent Searches & Favourites
 function renderHomeScreen(params, lang) {
-  const placeKeys = Object.keys(PLACES);
   const isDenied = params.state === 'denied';
   const hasError = state.formError || params.state === 'error';
+  const recentSearches = getRecentSearches();
+  const favourites = getFavourites();
+
+  const isFromOpen = state.activeCombobox === 'from';
+  const isToOpen = state.activeCombobox === 'to';
+
+  const matches = state.activeComboboxMatches.length > 0 
+    ? state.activeComboboxMatches 
+    : Object.values(PLACES);
 
   return `
     <h1 class="sr-only">${t('appName')} - ${t('navHome')}</h1>
@@ -282,37 +369,104 @@ function renderHomeScreen(params, lang) {
       ` : ''}
 
       <div class="orange-search-inputs">
-        <div class="white-input-field ${hasError ? 'has-error' : ''}">
-          <span class="white-input-field-icon" aria-hidden="true">${getIcon('pin-dot')}</span>
-          <label class="white-input-field-label" for="input-from">${t('from')}</label>
-          <input list="places-list" id="input-from" class="white-editable-input" 
-                 value="${getPlaceName(state.selectedFrom, lang)}" 
-                 aria-invalid="${hasError ? 'true' : 'false'}"
-                 placeholder="${t('from')}" />
+        <!-- Origin Combobox -->
+        <div class="combobox-container">
+          <div class="white-input-field ${hasError ? 'has-error' : ''}">
+            <span class="white-input-field-icon" aria-hidden="true">${getIcon('pin-dot')}</span>
+            <label class="white-input-field-label" for="input-from">${t('from')}</label>
+            <input id="input-from" 
+                   class="white-editable-input" 
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="${isFromOpen ? 'true' : 'false'}"
+                   aria-controls="listbox-from"
+                   aria-activedescendant="${isFromOpen && state.comboboxHighlightIndex >= 0 ? `from-opt-${state.comboboxHighlightIndex}` : ''}"
+                   value="${getPlaceName(state.selectedFrom, lang)}" 
+                   aria-invalid="${hasError ? 'true' : 'false'}"
+                   placeholder="${t('from')}"
+                   autocomplete="off" />
+          </div>
+
+          ${isFromOpen ? `
+            <ul class="combobox-listbox" id="listbox-from" role="listbox" aria-label="${t('from')} options">
+              ${matches.map((p, idx) => `
+                <li id="from-opt-${idx}" 
+                    role="option" 
+                    aria-selected="${idx === state.comboboxHighlightIndex ? 'true' : 'false'}"
+                    class="combobox-option" 
+                    data-combobox-select="from" 
+                    data-place-id="${p.id}">
+                  <span>${p[lang] || p.en}</span>
+                  <span class="combobox-option-meta"><bdi>${p.en}</bdi></span>
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
         </div>
 
+        <!-- Swap Button -->
         <button type="button" class="btn-white-swap" id="btn-swap-locations" aria-label="${t('swapLocations')}">
           ${getIcon('swap-vertical')}
         </button>
 
-        <div class="white-input-field ${hasError ? 'has-error' : ''}">
-          <span class="white-input-field-icon" aria-hidden="true">${getIcon('pin')}</span>
-          <label class="white-input-field-label" for="input-to">${t('to')}</label>
-          <input list="places-list" id="input-to" class="white-editable-input" 
-                 value="${getPlaceName(state.selectedTo, lang)}" 
-                 aria-invalid="${hasError ? 'true' : 'false'}"
-                 placeholder="${t('to')}" />
-        </div>
+        <!-- Destination Combobox -->
+        <div class="combobox-container">
+          <div class="white-input-field ${hasError ? 'has-error' : ''}">
+            <span class="white-input-field-icon" aria-hidden="true">${getIcon('pin')}</span>
+            <label class="white-input-field-label" for="input-to">${t('to')}</label>
+            <input id="input-to" 
+                   class="white-editable-input" 
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="${isToOpen ? 'true' : 'false'}"
+                   aria-controls="listbox-to"
+                   aria-activedescendant="${isToOpen && state.comboboxHighlightIndex >= 0 ? `to-opt-${state.comboboxHighlightIndex}` : ''}"
+                   value="${getPlaceName(state.selectedTo, lang)}" 
+                   aria-invalid="${hasError ? 'true' : 'false'}"
+                   placeholder="${t('to')}"
+                   autocomplete="off" />
+          </div>
 
-        <datalist id="places-list">
-          ${placeKeys.map(k => `<option value="${getPlaceName(k, lang)}" data-key="${k}"></option>`).join('')}
-        </datalist>
+          ${isToOpen ? `
+            <ul class="combobox-listbox" id="listbox-to" role="listbox" aria-label="${t('to')} options">
+              ${matches.map((p, idx) => `
+                <li id="to-opt-${idx}" 
+                    role="option" 
+                    aria-selected="${idx === state.comboboxHighlightIndex ? 'true' : 'false'}"
+                    class="combobox-option" 
+                    data-combobox-select="to" 
+                    data-place-id="${p.id}">
+                  <span>${p[lang] || p.en}</span>
+                  <span class="combobox-option-meta"><bdi>${p.en}</bdi></span>
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
+        </div>
       </div>
 
       <button type="button" class="btn-primary" id="btn-search-continue">
         ${t('continue')}
       </button>
     </section>
+
+    <!-- Recent Searches Section -->
+    ${recentSearches.length > 0 ? `
+      <section class="recent-searches-section" aria-labelledby="recent-searches-heading">
+        <div class="section-header">
+          <h2 id="recent-searches-heading" class="section-title">${t('recentSearches')}</h2>
+        </div>
+        <div class="chip-group-scroll">
+          ${recentSearches.map(item => `
+            <button type="button" class="chip-btn" data-recent-search="${item.from}:${item.to}">
+              ${renderPlace(item.from, lang)}
+              <span class="mirror-rtl" aria-hidden="true">→</span>
+              ${renderPlace(item.to, lang)}
+            </button>
+          `).join('')}
+        </div>
+      </section>
+    ` : ''}
 
     <!-- Available Routes Section -->
     <section class="available-routes-section" aria-labelledby="available-routes-heading">
@@ -374,7 +528,7 @@ function renderHomeScreen(params, lang) {
   `;
 }
 
-// 3. RESULTS SCREEN
+// 3. RESULTS SCREEN with Filtering, Sorting & Live Countdowns
 function renderResultsScreen(params, lang) {
   const fromKey = params.from || state.selectedFrom || 'majestic';
   const toKey = params.to || state.selectedTo || 'whitefield';
@@ -409,8 +563,8 @@ function renderResultsScreen(params, lang) {
     `;
   }
 
-  let routes = findRoutes(fromKey, toKey);
-  if (isExplicitEmpty || (!routes || routes.length === 0)) {
+  let rawRoutes = findRoutes(fromKey, toKey);
+  if (isExplicitEmpty || (!rawRoutes || rawRoutes.length === 0)) {
     return `
       <h1 class="sr-only">${t('availableRoutes')}</h1>
       <div class="pair-banner">
@@ -434,6 +588,24 @@ function renderResultsScreen(params, lang) {
     `;
   }
 
+  // Filter routes by mode
+  let filteredRoutes = rawRoutes;
+  if (state.modeFilter === 'metro') {
+    filteredRoutes = filteredRoutes.filter(r => r.mode === 'metro');
+  } else if (state.modeFilter === 'bus') {
+    filteredRoutes = filteredRoutes.filter(r => r.mode === 'bus');
+  }
+
+  // Sort routes
+  filteredRoutes = [...filteredRoutes].sort((a, b) => {
+    if (state.sortFilter === 'cheapest') {
+      return a.fare - b.fare;
+    } else if (state.sortFilter === 'stops') {
+      return a.stopsCount - b.stopsCount;
+    }
+    return a.durationMin - b.durationMin; // 'fastest' default
+  });
+
   return `
     <h1 class="sr-only">${t('availableRoutes')}</h1>
     <!-- Pair Banner -->
@@ -448,9 +620,64 @@ function renderResultsScreen(params, lang) {
       <img src="assets/hero.png" alt="TransitOne train" class="pair-banner-art" />
     </div>
 
+    <!-- Filter & Sort Bar -->
+    <section class="filter-sort-section" aria-label="Route filters and sorting">
+      <!-- Mode Filters -->
+      <div class="chip-group-scroll" role="radiogroup" aria-label="Transit Mode">
+        <button type="button" 
+                class="chip-btn ${state.modeFilter === 'all' ? 'active' : ''}" 
+                data-mode-filter="all" 
+                role="radio" 
+                aria-checked="${state.modeFilter === 'all' ? 'true' : 'false'}">
+          ${t('filterAll')}
+        </button>
+        <button type="button" 
+                class="chip-btn ${state.modeFilter === 'metro' ? 'active' : ''}" 
+                data-mode-filter="metro" 
+                role="radio" 
+                aria-checked="${state.modeFilter === 'metro' ? 'true' : 'false'}">
+          ${getIcon('metro')}
+          ${t('filterMetro')}
+        </button>
+        <button type="button" 
+                class="chip-btn ${state.modeFilter === 'bus' ? 'active' : ''}" 
+                data-mode-filter="bus" 
+                role="radio" 
+                aria-checked="${state.modeFilter === 'bus' ? 'true' : 'false'}">
+          ${getIcon('bus')}
+          ${t('filterBus')}
+        </button>
+      </div>
+
+      <!-- Sorting Options -->
+      <div class="chip-group-scroll" role="radiogroup" aria-label="Sort routes">
+        <button type="button" 
+                class="chip-btn ${state.sortFilter === 'fastest' ? 'active' : ''}" 
+                data-sort-filter="fastest" 
+                role="radio" 
+                aria-checked="${state.sortFilter === 'fastest' ? 'true' : 'false'}">
+          ${t('sortFastest')}
+        </button>
+        <button type="button" 
+                class="chip-btn ${state.sortFilter === 'cheapest' ? 'active' : ''}" 
+                data-sort-filter="cheapest" 
+                role="radio" 
+                aria-checked="${state.sortFilter === 'cheapest' ? 'true' : 'false'}">
+          ${t('sortCheapest')}
+        </button>
+        <button type="button" 
+                class="chip-btn ${state.sortFilter === 'stops' ? 'active' : ''}" 
+                data-sort-filter="stops" 
+                role="radio" 
+                aria-checked="${state.sortFilter === 'stops' ? 'true' : 'false'}">
+          ${t('sortFewestStops')}
+        </button>
+      </div>
+    </section>
+
     <!-- Route Cards List -->
     <div class="results-list" role="feed" aria-label="${t('availableRoutes')}">
-      ${routes.map((r, idx) => {
+      ${filteredRoutes.map((r, idx) => {
         const isFirst = idx === 0;
         const iconName = r.mode === 'metro' ? 'metro' : 'bus';
         return `
@@ -458,12 +685,18 @@ function renderResultsScreen(params, lang) {
                    data-route-id="${r.id}" 
                    tabindex="0" 
                    role="button" 
-                   aria-label="${r.code}, ${getPlaceName(r.from, lang)} ${t('to')} ${getPlaceName(r.to, lang)}, ${r.durationMin} ${t('min')}, ₹${r.fare}">
+                   aria-label="${r.code}, ${getPlaceName(r.from, lang)} ${t('to')} ${getPlaceName(r.to, lang)}, ${formatMinutes(r.durationMin, lang)}, ${formatFare(r.fare, lang)}">
             <div class="route-card-header">
               <div class="route-card-lead">
                 <div class="route-mode-tile">${getIcon(iconName)}</div>
                 <div class="route-card-headings">
-                  <span class="route-card-code"><bdi>${r.code}</bdi></span>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="route-card-code"><bdi>${r.code}</bdi></span>
+                    <span class="live-departure-chip">
+                      <span class="live-dot" aria-hidden="true"></span>
+                      <span>${r.nextDeparture || '4 min'}</span>
+                    </span>
+                  </div>
                   <span class="route-card-corridor">
                     ${renderPlace(r.from, lang)}
                     <span class="sr-only"> ${t('to')} </span>
@@ -478,15 +711,15 @@ function renderResultsScreen(params, lang) {
             <div class="route-card-footer">
               <span class="info-chip">
                 ${getIcon('clock')}
-                <span>${r.durationMin} ${t('min')}</span>
+                <span>${formatMinutes(r.durationMin, lang)}</span>
               </span>
               <span class="info-chip">
                 ${getIcon('pin-dot')}
-                <span>${r.stopsCount} ${t('stops')}</span>
+                <span>${formatStops(r.stopsCount, lang)}</span>
               </span>
               <span class="info-chip chip-fare">
                 ${getIcon('ticket')}
-                <span>₹${r.fare}</span>
+                <span>${formatFare(r.fare, lang)}</span>
               </span>
             </div>
           </article>
@@ -496,10 +729,12 @@ function renderResultsScreen(params, lang) {
   `;
 }
 
-// 4. ROUTE DETAILS SCREEN (#/route/<id>)
+// 4. ROUTE DETAILS SCREEN with Save, Share, Live Timeline & CTA
 function renderRouteDetailsScreen(routeId, lang) {
   const route = getRouteById(routeId);
   const iconName = route.mode === 'metro' ? 'metro' : 'bus';
+  const isSaved = isFavourite(route.id);
+  const departures = route.departureTimes || [new Date(), new Date(Date.now() + 600000), new Date(Date.now() + 1200000)];
 
   return `
     <h1 class="sr-only">${t('stopsTimeline')}</h1>
@@ -509,9 +744,9 @@ function renderRouteDetailsScreen(routeId, lang) {
           <div class="route-mode-tile">${getIcon(iconName)}</div>
           <span class="details-route-code"><bdi>${route.code}</bdi></span>
         </div>
-        <div class="departure-chip">
-          <span>${t('nextDeparture')}:</span>
-          <strong>${route.nextDeparture}</strong>
+        <div class="live-departure-chip">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>${t('liveBadge')} • ${route.nextDeparture || '4 min'}</span>
         </div>
       </div>
 
@@ -525,16 +760,41 @@ function renderRouteDetailsScreen(routeId, lang) {
       <div class="details-metrics-row">
         <span class="info-chip">
           ${getIcon('clock')}
-          <span>${route.durationMin} ${t('min')}</span>
+          <span>${formatMinutes(route.durationMin, lang)}</span>
         </span>
         <span class="info-chip">
           ${getIcon('pin-dot')}
-          <span>${route.stopsCount} ${t('stops')}</span>
+          <span>${formatStops(route.stopsCount, lang)}</span>
         </span>
         <span class="info-chip chip-fare">
           ${getIcon('ticket')}
-          <span>₹${route.fare}</span>
+          <span>${formatFare(route.fare, lang)}</span>
         </span>
+      </div>
+
+      <!-- Save & Share Action Buttons -->
+      <div class="route-actions-row">
+        <button type="button" class="btn-secondary-action ${isSaved ? 'active' : ''}" id="btn-toggle-save-route" data-route-id="${route.id}">
+          ${getIcon(isSaved ? 'star-filled' : 'star')}
+          <span>${isSaved ? t('routeSaved') : t('saveRoute')}</span>
+        </button>
+        <button type="button" class="btn-secondary-action" id="btn-share-route" data-route-id="${route.id}">
+          ${getIcon('share')}
+          <span>${t('shareRoute')}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Upcoming Departures Bar -->
+    <div class="departures-card">
+      <h2 class="timeline-title">${t('departuresTimeline')}</h2>
+      <div class="departures-list">
+        ${departures.map((d, i) => `
+          <div class="departure-pill">
+            <span class="departure-pill-time">${formatTime(d, lang)}</span>
+            <span class="departure-pill-rel">${formatMinutes((i + 1) * 7, lang)}</span>
+          </div>
+        `).join('')}
       </div>
     </div>
 
@@ -558,17 +818,183 @@ function renderRouteDetailsScreen(routeId, lang) {
       </div>
     </div>
 
+    <button type="button" class="btn-primary" id="btn-details-buy-ticket" data-route-id="${route.id}" style="margin-block-end:var(--space-12);">
+      ${t('buyTicket')} • ${formatFare(route.fare, lang)}
+    </button>
+
     <button type="button" class="btn-secondary" id="btn-details-search-again">
       ${t('searchAgain')}
     </button>
   `;
 }
 
-// 5. SETTINGS SCREEN
+// 5. TICKET BUY SCREEN (#/buy?routeId=...)
+function renderBuyScreen(params, lang) {
+  const route = getRouteById(params.routeId);
+  const farePerPerson = route.fare || 30;
+  const totalAmount = farePerPerson * state.passengersCount;
+
+  return `
+    <h1 class="sr-only">${t('buyTicket')}</h1>
+
+    <div class="details-summary-card">
+      <span class="details-route-code"><bdi>${route.code}</bdi></span>
+      <div class="details-endpoints" style="margin-block:var(--space-6);">
+        ${renderPlace(route.from, lang)}
+        <span class="sr-only"> ${t('to')} </span>
+        <span aria-hidden="true">${getIcon('arrow-forward')}</span>
+        ${renderPlace(route.to, lang)}
+      </div>
+    </div>
+
+    <section class="ticket-form-card" aria-label="Ticket Purchase Form">
+      <!-- Passenger Stepper -->
+      <div class="form-group">
+        <label class="form-group-label" id="label-passengers">${t('passengers')}</label>
+        <div class="stepper-control" role="group" aria-labelledby="label-passengers">
+          <button type="button" class="btn-stepper" id="btn-stepper-minus" aria-label="Decrease passenger count">−</button>
+          <span class="stepper-val" id="stepper-display">${formatNumber(state.passengersCount, lang)}</span>
+          <button type="button" class="btn-stepper" id="btn-stepper-plus" aria-label="Increase passenger count">+</button>
+        </div>
+      </div>
+
+      <!-- Traveler Name -->
+      <div class="form-group">
+        <label class="form-group-label" for="input-passenger-name">${t('passengerName')}</label>
+        <input id="input-passenger-name" 
+               class="white-editable-input" 
+               style="border:1.5px solid var(--color-border); border-radius:var(--radius-input); padding:10px 12px; background:var(--color-surface);" 
+               value="${state.travelerName}" 
+               placeholder="Harsha / John Doe" />
+      </div>
+
+      <!-- Traveler Phone (Strictly dir="ltr") -->
+      <div class="form-group">
+        <label class="form-group-label" for="input-passenger-phone">${t('passengerPhone')}</label>
+        <input id="input-passenger-phone" 
+               type="tel" 
+               dir="ltr" 
+               class="white-editable-input" 
+               style="border:1.5px solid var(--color-border); border-radius:var(--radius-input); padding:10px 12px; background:var(--color-surface);" 
+               value="${state.travelerPhone || '+91 98765 43210'}" 
+               placeholder="+91" />
+      </div>
+
+      <!-- Payment Method -->
+      <div class="form-group">
+        <span class="form-group-label" id="label-payment">${t('paymentMethod')}</span>
+        <div class="payment-radio-group" role="radiogroup" aria-labelledby="label-payment">
+          <label class="payment-option-label">
+            <input type="radio" name="payment" value="upi" ${state.paymentMethod === 'upi' ? 'checked' : ''} />
+            <span>${t('payUpi')}</span>
+          </label>
+          <label class="payment-option-label">
+            <input type="radio" name="payment" value="card" ${state.paymentMethod === 'card' ? 'checked' : ''} />
+            <span>${t('payCard')}</span>
+          </label>
+          <label class="payment-option-label">
+            <input type="radio" name="payment" value="cash" ${state.paymentMethod === 'cash' ? 'checked' : ''} />
+            <span>${t('payCash')}</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Fare Summary -->
+      <div style="border-block-start:1px solid var(--color-border); padding-block-start:var(--space-12); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:var(--font-size-sub); font-weight:700;">${t('totalFare')}:</span>
+        <span style="font-size:var(--font-size-heading); font-weight:700; color:var(--color-brand-orange);">
+          ${formatFare(totalAmount, lang)}
+        </span>
+      </div>
+
+      <button type="button" class="btn-primary" id="btn-confirm-ticket" data-route-id="${route.id}">
+        ${t('confirmAndPay')}
+      </button>
+    </section>
+  `;
+}
+
+// 6. TICKET RECEIPT SCREEN (#/ticket/<id>)
+function renderTicketReceiptScreen(ticketId, lang) {
+  const tickets = getTickets();
+  const ticket = tickets.find(t => t.id === ticketId) || tickets[0] || {
+    id: 'TK-84920',
+    routeCode: 'Metro M1',
+    from: 'majestic',
+    to: 'whitefield',
+    passengers: 1,
+    fare: 30,
+    time: '09:30',
+    date: 'Today'
+  };
+
+  return `
+    <h1 class="sr-only">${t('ticketConfirmed')}</h1>
+
+    <div class="ticket-receipt-card" role="region" aria-label="${t('ticketConfirmed')}">
+      <div style="inline-size:48px; block-size:48px; border-radius:var(--radius-pill); background-color:var(--color-brand-orange); color:#FFFFFF; display:flex; align-items:center; justify-content:center;">
+        ${getIcon('check')}
+      </div>
+      <h2 style="font-size:var(--font-size-sub); font-weight:700; margin:0;">${t('ticketConfirmed')}</h2>
+      <span style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
+        ${t('ticketId')}: <bdi>${ticket.id}</bdi>
+      </span>
+
+      <div style="font-size:var(--font-size-body); font-weight:700; margin-block:var(--space-8);">
+        ${renderPlace(ticket.from, lang)}
+        <span class="mirror-rtl" aria-hidden="true"> → </span>
+        ${renderPlace(ticket.to, lang)}
+      </div>
+
+      <!-- Generated Vector SVG QR Code -->
+      <div class="qr-code-box" role="img" aria-label="Digital Transit QR Code">
+        <svg width="144" height="144" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer Positioning Boxes -->
+          <rect x="1" y="1" width="7" height="7" stroke="#1F2937" stroke-width="2"/>
+          <rect x="3" y="3" width="3" height="3" fill="#1F2937"/>
+          <rect x="21" y="1" width="7" height="7" stroke="#1F2937" stroke-width="2"/>
+          <rect x="23" y="3" width="3" height="3" fill="#1F2937"/>
+          <rect x="1" y="21" width="7" height="7" stroke="#1F2937" stroke-width="2"/>
+          <rect x="3" y="23" width="3" height="3" fill="#1F2937"/>
+          <!-- Data Dots -->
+          <rect x="11" y="2" width="2" height="2" fill="#1F2937"/>
+          <rect x="15" y="2" width="2" height="2" fill="#1F2937"/>
+          <rect x="11" y="6" width="2" height="2" fill="#1F2937"/>
+          <rect x="13" y="10" width="3" height="3" fill="#FF8A00"/>
+          <rect x="10" y="14" width="2" height="2" fill="#1F2937"/>
+          <rect x="14" y="14" width="2" height="2" fill="#1F2937"/>
+          <rect x="18" y="14" width="2" height="2" fill="#1F2937"/>
+          <rect x="11" y="18" width="2" height="2" fill="#1F2937"/>
+          <rect x="15" y="18" width="2" height="2" fill="#1F2937"/>
+          <rect x="21" y="11" width="2" height="2" fill="#1F2937"/>
+          <rect x="25" y="11" width="2" height="2" fill="#1F2937"/>
+          <rect x="21" y="15" width="2" height="2" fill="#1F2937"/>
+          <rect x="23" y="23" width="2" height="2" fill="#1F2937"/>
+          <rect x="25" y="25" width="2" height="2" fill="#1F2937"/>
+        </svg>
+      </div>
+
+      <p style="font-size:var(--font-size-small); font-weight:600; color:var(--color-text);">
+        ${t('showQrAtGate')}
+      </p>
+
+      <div style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
+        ${t('validFor')} • ${formatFare(ticket.fare, lang)} (${formatNumber(ticket.passengers, lang)} ${t('passengers')})
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary" id="btn-ticket-back-home">
+      ${t('navHome')}
+    </button>
+  `;
+}
+
+// 7. SETTINGS SCREEN with Numerals, Text-Size, and Data Reset
 function renderSettingsScreen(lang) {
   const isLarger = document.documentElement.classList.contains('larger-text');
   const isHighContrast = document.documentElement.classList.contains('high-contrast');
   const isForced = isForcedOpposite();
+  const currentNumSys = getNumberingSystem();
 
   return `
     <h1 class="sr-only">${t('navSettings')}</h1>
@@ -613,6 +1039,19 @@ function renderSettingsScreen(lang) {
         </div>
       </div>
 
+      <!-- Numerals Switch -->
+      <div class="settings-toggle-row">
+        <div class="settings-toggle-info">
+          <span class="settings-toggle-label">${t('numerals')}</span>
+          <span class="settings-toggle-desc">${currentNumSys === 'latn' ? t('latinDigits') : t('nativeDigits')}</span>
+        </div>
+        <label class="switch" aria-label="${t('numerals')}">
+          <input type="checkbox" role="switch" aria-checked="${currentNumSys !== 'latn' ? 'true' : 'false'}" id="toggle-numerals" ${currentNumSys !== 'latn' ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Larger Text Toggle -->
       <div class="settings-toggle-row">
         <div class="settings-toggle-info">
           <span class="settings-toggle-label">${t('largerText')}</span>
@@ -624,6 +1063,7 @@ function renderSettingsScreen(lang) {
         </label>
       </div>
 
+      <!-- High Contrast Toggle -->
       <div class="settings-toggle-row">
         <div class="settings-toggle-info">
           <span class="settings-toggle-label">${t('highContrast')}</span>
@@ -634,6 +1074,20 @@ function renderSettingsScreen(lang) {
           <span class="slider"></span>
         </label>
       </div>
+    </section>
+
+    <!-- Data Management Section -->
+    <section class="settings-section" aria-labelledby="settings-data-heading">
+      <div class="settings-section-head">
+        <div class="settings-section-icon">${getIcon('refresh')}</div>
+        <div class="settings-section-info">
+          <h2 id="settings-data-heading" class="settings-section-title">${t('clearSavedData')}</h2>
+          <span class="settings-section-desc">Reset recent searches, saved routes and demo tickets</span>
+        </div>
+      </div>
+      <button type="button" class="btn-secondary" id="btn-clear-saved-data" style="margin-block-start:var(--space-8);">
+        ${t('clearSavedData')}
+      </button>
     </section>
 
     <!-- About Section -->
@@ -688,12 +1142,11 @@ function renderSettingsScreen(lang) {
   `;
 }
 
-// 6. DESIGN SYSTEM PAGE (#/design-system)
+// 8. DESIGN SYSTEM PAGE (#/design-system)
 function renderDesignSystemPage(lang) {
   const isHighContrast = document.documentElement.classList.contains('high-contrast');
   const isExpansion = isTextExpansionActive();
 
-  // Dynamic Live Color Tokens & Contrast Calculation
   const tokens = [
     { name: 'Brand Orange', hex: isHighContrast ? '#B54A00' : '#FF8A00', paired: isHighContrast ? '#FFFFFF' : '#1F2937', pairedName: isHighContrast ? 'White' : 'Dark Gray' },
     { name: 'Orange Tint', hex: isHighContrast ? '#FED7AA' : '#FFE3C2', paired: '#1F2937', pairedName: 'Dark Gray' },
@@ -790,50 +1243,14 @@ function renderDesignSystemPage(lang) {
             ${translations[lang].tagline}
           </div>
         </div>
-        <div class="type-scale-item">
-          <span class="type-scale-meta">Small: 0.875rem (14px)</span>
-          <div style="font-size:var(--font-size-small); color:var(--color-text-muted);">
-            ${translations[lang].changeAnytime}
-          </div>
-        </div>
-        <div class="type-scale-item">
-          <span class="type-scale-meta">Caption: 0.75rem (12px)</span>
-          <div style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
-            ${translations[lang].aboutDesc}
-          </div>
-        </div>
       </section>
 
-      <!-- Section 4: Spacing & Layout Rules -->
+      <!-- Section 4: Icon RTL & Cultural Rules -->
       <section class="ds-section" aria-labelledby="ds-sec-4">
-        <h2 id="ds-sec-4" class="ds-section-title">4. Spacing Scale &amp; Radii Rules</h2>
-        ${[4, 8, 12, 16, 24, 32].map(s => `
-          <div class="spacing-scale-row">
-            <span class="spacing-label">${s}px</span>
-            <div class="spacing-bar" style="inline-size:${s * 4}px;"></div>
-          </div>
-        `).join('')}
-
-        <div style="margin-block-start:var(--space-12); font-size:var(--font-size-small);">
-          <strong>Architectural Rules:</strong>
-          <ul style="padding-inline-start:20px; margin-block-start:6px; display:flex; flex-direction:column; gap:4px;">
-            <li>CSS Logical Properties ONLY (margin-inline-start, padding-inline, text-align:start).</li>
-            <li>Zero physical left/right properties across stylesheet.</li>
-            <li>No fixed heights on text containers (prevents Indic conjunct clipping).</li>
-            <li>Strict 44x44px minimum touch targets on all interactive controls.</li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- Section 5: Icon RTL & Cultural Rules -->
-      <section class="ds-section" aria-labelledby="ds-sec-5">
-        <h2 id="ds-sec-5" class="ds-section-title">5. Icon RTL &amp; Cultural Rules</h2>
+        <h2 id="ds-sec-4" class="ds-section-title">4. Unified Icon Mirroring &amp; Cultural Semantics</h2>
         
         <div class="icon-group">
-          <div class="icon-group-title">1. Mirrored in RTL (Directional Navigation)</div>
-          <p style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
-            Flipped because reading direction and chronological progression reverses.
-          </p>
+          <div class="icon-group-title">1. Directional Icons (Mirrored in RTL via .mirror-rtl)</div>
           <div class="icon-grid">
             <div class="icon-item">${getIcon('arrow-back')}<span>back</span></div>
             <div class="icon-item">${getIcon('chevron-forward')}<span>chevron</span></div>
@@ -843,103 +1260,32 @@ function renderDesignSystemPage(lang) {
         </div>
 
         <div class="icon-group">
-          <div class="icon-group-title">2. Never Mirrored (Symmetrical &amp; Physical Realities)</div>
-          <p style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
-            Clockwise time, search lens orientation, and physical vehicles do not mirror.
-          </p>
+          <div class="icon-group-title">2. Symmetrical &amp; Physical Objects (Never Mirrored)</div>
           <div class="icon-grid">
             <div class="icon-item">${getIcon('globe')}<span>globe</span></div>
             <div class="icon-item">${getIcon('search')}<span>search</span></div>
             <div class="icon-item">${getIcon('home')}<span>home</span></div>
-            <div class="icon-item">${getIcon('settings')}<span>settings</span></div>
             <div class="icon-item">${getIcon('clock')}<span>clock</span></div>
             <div class="icon-item">${getIcon('pin')}<span>pin</span></div>
-            <div class="icon-item">${getIcon('swap-vertical')}<span>swap</span></div>
             <div class="icon-item">${getIcon('bus')}<span>bus</span></div>
+            <div class="icon-item">${getIcon('metro')}<span>metro</span></div>
+            <div class="icon-item">${getIcon('ticket')}<span>ticket</span></div>
           </div>
         </div>
 
         <div class="icon-group">
-          <div class="icon-group-title">3. Culturally Sensitive (Replaced with Neutral Symbols)</div>
+          <div class="icon-group-title">3. Cultural Audit &amp; Replacement Rationale</div>
           <div style="font-size:var(--font-size-caption); color:var(--color-text-muted); display:flex; flex-direction:column; gap:6px;">
-            <div>• <strong>Thumbs-up gesture</strong>: Offensive in Middle East / West Asia. Use checkmark ${getIcon('check')}.</div>
-            <div>• <strong>Open palm / Hand gestures</strong>: Sign of insult or halt across Mediterranean/Arab cultures. Use clear text.</div>
-            <div>• <strong>US Curbside Mailbox</strong>: Not understood outside North America. Use envelope or text.</div>
-            <div>• <strong>Color-only status</strong>: Red/green colorblindness and cultural variances. Always pair with icons.</div>
+            <div>• <strong>Thumbs Up</strong>: Offensive in Middle East / West Asia. Replaced by neutral checkmark ${getIcon('check')}.</div>
+            <div>• <strong>Open Hand Gestures</strong>: Culturally varied. Replaced by direct textual clarity.</div>
+            <div>• <strong>US Mailbox</strong>: Not understood across South Asia. Replaced by standard ticket &amp; text semantics.</div>
           </div>
         </div>
       </section>
 
-      <!-- Section 6: Components & States Matrix -->
-      <section class="ds-section" aria-labelledby="ds-sec-6">
-        <h2 id="ds-sec-6" class="ds-section-title">6. Components &amp; State Matrix</h2>
-        
-        <div class="component-state-row">
-          <span class="state-label">Primary Button (Default, Hover, Active, Disabled)</span>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <button type="button" class="btn-primary">${t('continue')}</button>
-            <button type="button" class="btn-primary is-hover">${t('continue')} (Hover state)</button>
-            <button type="button" class="btn-primary is-active">${t('continue')} (Active state)</button>
-            <button type="button" class="btn-primary is-disabled" disabled>${t('continue')} (Disabled)</button>
-          </div>
-        </div>
-
-        <div class="component-state-row">
-          <span class="state-label">White Search Input (Default, Focus, Error)</span>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <div class="white-input-field">
-              <span class="white-input-field-icon">${getIcon('pin-dot')}</span>
-              <span class="white-input-field-label">${t('from')}</span>
-              <input class="white-editable-input" value="Majestic" readonly aria-label="${t('from')} preview" />
-            </div>
-            <div class="white-input-field is-focus">
-              <span class="white-input-field-icon">${getIcon('pin-dot')}</span>
-              <span class="white-input-field-label">${t('from')}</span>
-              <input class="white-editable-input" value="Majestic (Focused)" readonly aria-label="${t('from')} focused preview" />
-            </div>
-            <div class="white-input-field is-error">
-              <span class="white-input-field-icon" style="color:var(--color-error);">${getIcon('alert-circle')}</span>
-              <span class="white-input-field-label">${t('from')}</span>
-              <input class="white-editable-input" value="Invalid input" readonly aria-label="${t('from')} error preview" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 7: Bidirectional Text Examples -->
-      <section class="ds-section" aria-labelledby="ds-sec-7">
-        <h2 id="ds-sec-7" class="ds-section-title">7. Bidirectional Text Isolation (&lt;bdi&gt;)</h2>
-        <p style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
-          Without isolation, LTR route codes inside RTL Urdu flip punctuation and order improperly.
-        </p>
-
-        <div class="bidi-sample-card">
-          <span class="bidi-title">1. Route code inside Urdu sentence:</span>
-          <div class="bidi-broken" dir="rtl">خراب: بس Bus 500 روانہ ہو چکی ہے!</div>
-          <div class="bidi-fixed" dir="rtl">درست: بس <bdi>Bus 500</bdi> روانہ ہو چکی ہے!</div>
-        </div>
-
-        <div class="bidi-sample-card">
-          <span class="bidi-title">2. Phone Number Isolation:</span>
-          <div class="bidi-broken" dir="rtl">خراب: +91 80 2235 2200 ہیلپ لائن</div>
-          <div class="bidi-fixed" dir="rtl">درست: <bdi>+91 80 2235 2200</bdi> ہیلپ لائن</div>
-        </div>
-
-        <div class="bidi-sample-card">
-          <span class="bidi-title">3. Rupee Fare Isolation:</span>
-          <div class="bidi-broken" dir="rtl">خراب: کل کرایہ ₹30 ہے</div>
-          <div class="bidi-fixed" dir="rtl">درست: کل کرایہ <bdi>₹30</bdi> ہے</div>
-        </div>
-
-        <div class="bidi-sample-card">
-          <span class="bidi-title">4. Mixed Hindi-English corridor:</span>
-          <div>मजेस्टिक से <bdi>Metro M1</bdi> द्वारा व्हाइटफील्ड</div>
-        </div>
-      </section>
-
-      <!-- Section 8: Text Expansion Stress Test -->
-      <section class="ds-section" aria-labelledby="ds-sec-8">
-        <h2 id="ds-sec-8" class="ds-section-title">8. Text-Expansion Stress Test (+40%)</h2>
+      <!-- Section 5: Text Expansion Stress Test -->
+      <section class="ds-section" aria-labelledby="ds-sec-5">
+        <h2 id="ds-sec-5" class="ds-section-title">5. Text-Expansion Stress Test (+40%)</h2>
         <div class="settings-toggle-row">
           <div class="settings-toggle-info">
             <span class="settings-toggle-label">${t('textExpansion')}</span>
@@ -955,7 +1301,7 @@ function renderDesignSystemPage(lang) {
   `;
 }
 
-// 7. BOTTOM SHEET MODAL FOR LANGUAGE SWITCHER
+// 9. BOTTOM SHEET MODAL FOR LANGUAGE SWITCHER
 function renderLanguageSheet(lang) {
   if (!state.langSheetOpen) return '';
 
@@ -991,7 +1337,7 @@ function renderLanguageSheet(lang) {
   `;
 }
 
-// 8. ABOUT MODAL
+// 10. ABOUT MODAL
 function renderAboutModal() {
   if (!state.aboutModalOpen) return '';
   return `
@@ -1005,12 +1351,12 @@ function renderAboutModal() {
           </button>
         </div>
         <div style="display:flex; flex-direction:column; gap:12px;">
-          <h3 style="font-weight:700; font-size:var(--font-size-sub);">TransitOne Version 1.0</h3>
+          <h3 style="font-weight:700; font-size:var(--font-size-sub);">TransitOne Version 2.0</h3>
           <p style="color:var(--color-text-muted); font-size:var(--font-size-small);">
             ${t('aboutAcademicNotice')}
           </p>
           <div style="font-size:var(--font-size-caption); color:var(--color-text-muted);">
-            WCAG AA dark-text contrast, 44px touch targets, logical CSS properties only, and seamless RTL/Indic script integration.
+            Unified RTL & Indic Design System Localisation: typography metrics, cultural icon audit, zero physical CSS properties, and fully offline-resilient PWA service worker.
           </div>
         </div>
       </div>
@@ -1038,6 +1384,10 @@ function renderApp() {
     bodyContent = renderResultsScreen(params, lang);
   } else if (route === 'route') {
     bodyContent = renderRouteDetailsScreen(params.id, lang);
+  } else if (route === 'buy') {
+    bodyContent = renderBuyScreen(params, lang);
+  } else if (route === 'ticket') {
+    bodyContent = renderTicketReceiptScreen(params.id, lang);
   } else if (route === 'settings') {
     bodyContent = renderSettingsScreen(lang);
   } else if (route === 'design-system') {
@@ -1055,6 +1405,7 @@ function renderApp() {
     ${renderBottomNav(route)}
     ${renderLanguageSheet(lang)}
     ${renderAboutModal()}
+    <div id="toast-mount" class="toast-container"></div>
     <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   `;
 
@@ -1064,17 +1415,20 @@ function renderApp() {
 
 // Event Listeners Binding
 function attachEventHandlers(route, params) {
-  // Back button in header
+  const lang = getCurrentLanguage();
+
+  // Header Back Button
   const btnBack = document.getElementById('btn-back-header');
   if (btnBack) {
     btnBack.addEventListener('click', () => {
-      if (route === 'route') navigate('results', { from: state.selectedFrom, to: state.selectedTo });
+      if (route === 'route' || route === 'buy') navigate('results', { from: state.selectedFrom, to: state.selectedTo });
+      else if (route === 'ticket') navigate('home');
       else if (route === 'design-system') navigate('settings');
       else navigate('home');
     });
   }
 
-  // Language Chip Button
+  // Header Language Chip Button
   const btnOpenLangSheet = document.getElementById('btn-open-lang-sheet');
   if (btnOpenLangSheet) {
     btnOpenLangSheet.addEventListener('click', () => {
@@ -1118,7 +1472,7 @@ function attachEventHandlers(route, params) {
     });
   });
 
-  // Welcome Screen Language Cards with Keyboard Navigation
+  // Welcome Screen Language Cards
   const langCards = Array.from(document.querySelectorAll('.lang-card-option'));
   langCards.forEach((el, index) => {
     el.addEventListener('click', () => {
@@ -1151,89 +1505,148 @@ function attachEventHandlers(route, params) {
     });
   }
 
-  // Home Screen Inputs
-  const inputFrom = document.getElementById('input-from');
-  const inputTo = document.getElementById('input-to');
-  if (inputFrom) {
-    inputFrom.addEventListener('input', (e) => {
+  // Combobox Handling for From and To
+  function setupCombobox(inputId, type) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    input.addEventListener('focus', () => {
+      state.activeCombobox = type;
+      state.comboboxHighlightIndex = -1;
+      state.activeComboboxMatches = searchPlaces(input.value, lang);
+      renderApp();
+      const refocused = document.getElementById(inputId);
+      if (refocused) refocused.focus();
+    });
+
+    input.addEventListener('input', (e) => {
       state.formError = null;
-      const val = e.target.value.trim().toLowerCase();
-      for (const [k, obj] of Object.entries(PLACES)) {
-        if (Object.values(obj).some(v => typeof v === 'string' && v.toLowerCase() === val)) {
-          state.selectedFrom = k;
-          break;
-        }
+      state.activeCombobox = type;
+      state.comboboxHighlightIndex = -1;
+      state.activeComboboxMatches = searchPlaces(e.target.value, lang);
+      renderApp();
+      const refocused = document.getElementById(inputId);
+      if (refocused) {
+        refocused.focus();
+        refocused.setSelectionRange(e.target.value.length, e.target.value.length);
       }
     });
-  }
-  if (inputTo) {
-    inputTo.addEventListener('input', (e) => {
-      state.formError = null;
-      const val = e.target.value.trim().toLowerCase();
-      for (const [k, obj] of Object.entries(PLACES)) {
-        if (Object.values(obj).some(v => typeof v === 'string' && v.toLowerCase() === val)) {
-          state.selectedTo = k;
-          break;
+
+    input.addEventListener('keydown', (e) => {
+      const matches = state.activeComboboxMatches.length > 0 
+        ? state.activeComboboxMatches 
+        : Object.values(PLACES);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        state.comboboxHighlightIndex = (state.comboboxHighlightIndex + 1) % matches.length;
+        renderApp();
+        const refocused = document.getElementById(inputId);
+        if (refocused) refocused.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        state.comboboxHighlightIndex = (state.comboboxHighlightIndex - 1 + matches.length) % matches.length;
+        renderApp();
+        const refocused = document.getElementById(inputId);
+        if (refocused) refocused.focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.comboboxHighlightIndex >= 0 && state.comboboxHighlightIndex < matches.length) {
+          const selected = matches[state.comboboxHighlightIndex];
+          if (type === 'from') state.selectedFrom = selected.id;
+          else state.selectedTo = selected.id;
         }
+        state.activeCombobox = null;
+        renderApp();
+      } else if (e.key === 'Escape') {
+        state.activeCombobox = null;
+        renderApp();
       }
     });
   }
 
-  // Swap Button
+  setupCombobox('input-from', 'from');
+  setupCombobox('input-to', 'to');
+
+  // Combobox list item click
+  document.querySelectorAll('[data-combobox-select]').forEach(el => {
+    el.addEventListener('click', () => {
+      const type = el.getAttribute('data-combobox-select');
+      const placeId = el.getAttribute('data-place-id');
+      if (type === 'from') state.selectedFrom = placeId;
+      else state.selectedTo = placeId;
+      state.activeCombobox = null;
+      state.formError = null;
+      renderApp();
+    });
+  });
+
+  // Swap Locations Button
   const btnSwap = document.getElementById('btn-swap-locations');
   if (btnSwap) {
     btnSwap.addEventListener('click', () => {
       const tmp = state.selectedFrom;
       state.selectedFrom = state.selectedTo;
       state.selectedTo = tmp;
-      if (inputFrom && inputTo) {
-        const lang = getCurrentLanguage();
-        inputFrom.value = getPlaceName(state.selectedFrom, lang);
-        inputTo.value = getPlaceName(state.selectedTo, lang);
-      }
+      state.formError = null;
+      renderApp();
     });
   }
 
-  // Home Search Continue Button (Validates From !== To, shows ~600ms skeleton)
+  // Home Search Continue Button
   const btnSearchContinue = document.getElementById('btn-search-continue');
   if (btnSearchContinue) {
     btnSearchContinue.addEventListener('click', () => {
+      if (!state.selectedFrom || !state.selectedTo) {
+        state.formError = t('errorEmptyLocation');
+        renderApp();
+        return;
+      }
       if (state.selectedFrom === state.selectedTo) {
         state.formError = t('errorSameLocation');
         renderApp();
         const announcer = document.getElementById('live-announcer');
         if (announcer) announcer.textContent = t('errorSameLocation');
-        if (inputFrom) inputFrom.focus();
         return;
       }
 
+      addRecentSearch(state.selectedFrom, state.selectedTo);
       state.formError = null;
       state.isSimulatedLoading = true;
       navigate('results', { from: state.selectedFrom, to: state.selectedTo });
       setTimeout(() => {
         state.isSimulatedLoading = false;
         renderApp();
-      }, 600);
+      }, 500);
     });
   }
 
-  // Location Denied "Enter location manually" button
-  const btnFocusFrom = document.getElementById('btn-focus-from');
-  if (btnFocusFrom && inputFrom) {
-    btnFocusFrom.addEventListener('click', () => {
-      inputFrom.focus();
+  // Recent Searches Click
+  document.querySelectorAll('[data-recent-search]').forEach(el => {
+    el.addEventListener('click', () => {
+      const [from, to] = el.getAttribute('data-recent-search').split(':');
+      state.selectedFrom = from;
+      state.selectedTo = to;
+      navigate('results', { from, to });
     });
-  }
+  });
 
-  // See All Link
-  const btnSeeAll = document.getElementById('btn-see-all');
-  if (btnSeeAll) {
-    btnSeeAll.addEventListener('click', () => {
-      navigate('results', { from: 'majestic', to: 'whitefield' });
+  // Filter & Sort Chips on Results
+  document.querySelectorAll('[data-mode-filter]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.modeFilter = el.getAttribute('data-mode-filter');
+      renderApp();
     });
-  }
+  });
 
-  // Quick Route Cards
+  document.querySelectorAll('[data-sort-filter]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.sortFilter = el.getAttribute('data-sort-filter');
+      renderApp();
+    });
+  });
+
+  // Quick Route Cards on Home
   document.querySelectorAll('[data-route-pair]').forEach(el => {
     el.addEventListener('click', () => {
       const [from, to] = el.getAttribute('data-route-pair').split(':');
@@ -1251,15 +1664,52 @@ function attachEventHandlers(route, params) {
     });
   });
 
-  // Try Another Route Button (Empty State)
-  const btnTryAnother = document.getElementById('btn-try-another-route');
-  if (btnTryAnother) {
-    btnTryAnother.addEventListener('click', () => {
-      navigate('home');
+  // Route Details: Save Route Toggle
+  const btnToggleSave = document.getElementById('btn-toggle-save-route');
+  if (btnToggleSave) {
+    btnToggleSave.addEventListener('click', () => {
+      const routeId = btnToggleSave.getAttribute('data-route-id');
+      const nowSaved = toggleFavourite(routeId);
+      showToast(nowSaved ? t('routeSaved') : 'Removed from saved');
+      renderApp();
     });
   }
 
-  // Route Details "Search again" button
+  // Route Details: Share Route
+  const btnShare = document.getElementById('btn-share-route');
+  if (btnShare) {
+    btnShare.addEventListener('click', async () => {
+      const shareUrl = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `${t('appName')} Route`,
+            url: shareUrl
+          });
+        } catch (e) {
+          // Fallback to clipboard
+          navigator.clipboard?.writeText(shareUrl);
+          showToast(t('linkCopied'));
+        }
+      } else {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(shareUrl);
+        }
+        showToast(t('linkCopied'));
+      }
+    });
+  }
+
+  // Route Details: Buy Ticket CTA
+  const btnDetailsBuy = document.getElementById('btn-details-buy-ticket');
+  if (btnDetailsBuy) {
+    btnDetailsBuy.addEventListener('click', () => {
+      const routeId = btnDetailsBuy.getAttribute('data-route-id');
+      navigate('buy', { routeId });
+    });
+  }
+
+  // Route Details "Search again"
   const btnSearchAgain = document.getElementById('btn-details-search-again');
   if (btnSearchAgain) {
     btnSearchAgain.addEventListener('click', () => {
@@ -1267,13 +1717,95 @@ function attachEventHandlers(route, params) {
     });
   }
 
-  // Settings Language Selection
-  document.querySelectorAll('.lang-radio-item[data-lang-choice]').forEach(el => {
-    el.addEventListener('click', () => {
-      const chosen = el.getAttribute('data-lang-choice');
-      applyLanguage(chosen);
+  // Ticket Buy Stepper
+  const btnStepMinus = document.getElementById('btn-stepper-minus');
+  const btnStepPlus = document.getElementById('btn-stepper-plus');
+  if (btnStepMinus) {
+    btnStepMinus.addEventListener('click', () => {
+      if (state.passengersCount > 1) {
+        state.passengersCount--;
+        renderApp();
+      }
+    });
+  }
+  if (btnStepPlus) {
+    btnStepPlus.addEventListener('click', () => {
+      if (state.passengersCount < 6) {
+        state.passengersCount++;
+        renderApp();
+      }
+    });
+  }
+
+  // Passenger Inputs
+  const inputName = document.getElementById('input-passenger-name');
+  if (inputName) {
+    inputName.addEventListener('input', (e) => {
+      state.travelerName = e.target.value;
+    });
+  }
+  const inputPhone = document.getElementById('input-passenger-phone');
+  if (inputPhone) {
+    inputPhone.addEventListener('input', (e) => {
+      state.travelerPhone = e.target.value;
+    });
+  }
+
+  // Payment Radio
+  document.querySelectorAll('input[name="payment"]').forEach(r => {
+    r.addEventListener('change', (e) => {
+      state.paymentMethod = e.target.value;
     });
   });
+
+  // Confirm Ticket Button
+  const btnConfirmTicket = document.getElementById('btn-confirm-ticket');
+  if (btnConfirmTicket) {
+    btnConfirmTicket.addEventListener('click', () => {
+      const routeId = btnConfirmTicket.getAttribute('data-route-id');
+      const route = getRouteById(routeId);
+      const ticketId = `TK-${Math.floor(10000 + Math.random() * 90000)}`;
+      
+      saveTicket({
+        id: ticketId,
+        routeId: route.id,
+        routeCode: route.code,
+        from: route.from,
+        to: route.to,
+        passengers: state.passengersCount,
+        fare: (route.fare || 30) * state.passengersCount,
+        travelerName: state.travelerName || 'Harsha',
+        date: 'Today',
+        time: route.stops && route.stops[0] ? route.stops[0].time : '09:00'
+      });
+
+      showToast(t('ticketConfirmed'));
+      navigate('ticket', { id: ticketId });
+    });
+  }
+
+  // Ticket Receipt Back to Home
+  const btnTicketHome = document.getElementById('btn-ticket-back-home');
+  if (btnTicketHome) {
+    btnTicketHome.addEventListener('click', () => {
+      navigate('home');
+    });
+  }
+
+  // Settings Numerals Toggle (Latin vs Native script digits)
+  const toggleNumerals = document.getElementById('toggle-numerals');
+  if (toggleNumerals) {
+    toggleNumerals.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        // Native script digits
+        const sys = lang === 'hi' ? 'deva' : lang === 'kn' ? 'knda' : lang === 'ur' ? 'arabext' : 'latn';
+        setNumberingSystem(sys);
+      } else {
+        setNumberingSystem('latn');
+      }
+      renderApp();
+    });
+  }
 
   // Larger Text Toggle
   const toggleLarger = document.getElementById('toggle-larger-text');
@@ -1300,6 +1832,16 @@ function attachEventHandlers(route, params) {
         document.documentElement.classList.remove('high-contrast');
         try { localStorage.setItem('transitone_high_contrast', 'false'); } catch (err) {}
       }
+      renderApp();
+    });
+  }
+
+  // Clear Saved Data Button
+  const btnClearData = document.getElementById('btn-clear-saved-data');
+  if (btnClearData) {
+    btnClearData.addEventListener('click', () => {
+      clearAllSavedData();
+      showToast(t('dataCleared'));
       renderApp();
     });
   }
@@ -1372,7 +1914,7 @@ function attachEventHandlers(route, params) {
     });
   }
 
-  // Design System Script Matrix Click -> Switches Language
+  // Design System Script Matrix Click
   document.querySelectorAll('[data-matrix-lang]').forEach(el => {
     el.addEventListener('click', () => {
       const chosen = el.getAttribute('data-matrix-lang');
@@ -1403,6 +1945,30 @@ function attachEventHandlers(route, params) {
       else if (navTarget === 'settings') navigate('settings');
     });
   });
+
+  // Settings Language Selection
+  document.querySelectorAll('.lang-radio-item[data-lang-choice]').forEach(el => {
+    el.addEventListener('click', () => {
+      const chosen = el.getAttribute('data-lang-choice');
+      applyLanguage(chosen);
+    });
+  });
+
+  // See All Link
+  const btnSeeAll = document.getElementById('btn-see-all');
+  if (btnSeeAll) {
+    btnSeeAll.addEventListener('click', () => {
+      navigate('results', { from: 'majestic', to: 'whitefield' });
+    });
+  }
+
+  // Try Another Route Button (Empty State)
+  const btnTryAnother = document.getElementById('btn-try-another-route');
+  if (btnTryAnother) {
+    btnTryAnother.addEventListener('click', () => {
+      navigate('home');
+    });
+  }
 }
 
 // App Initialization
