@@ -23,6 +23,7 @@ const SHELL_ASSETS = [
   './js/storage.js',
   './assets/logo.svg',
   './assets/hero.png',
+  './assets/sprite.svg',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/apple-touch-icon.png'

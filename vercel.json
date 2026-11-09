@@ -1,0 +1,94 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/demo/index.html"
+    },
+    {
+      "source": "/demo",
+      "destination": "/demo/index.html"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/demo/assets/$1"
+    },
+    {
+      "source": "/css/(.*)",
+      "destination": "/demo/css/$1"
+    },
+    {
+      "source": "/js/(.*)",
+      "destination": "/demo/js/$1"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/demo/sw.js"
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "/demo/manifest.webmanifest"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/demo/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/demo/(index\\.html|sw\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/(index\\.html|sw\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/(demo/)?assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
+}
+

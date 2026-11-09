@@ -80,3 +80,22 @@ python -m http.server 8000 --directory demo
 ```
 
 Open `http://localhost:8000` in your web browser.
+
+---
+
+## 6. Vercel Deployment Guide
+
+TransitOne is configured for **zero-configuration instant deployment on Vercel**:
+
+### Option A: Direct Zero-Config (Recommended)
+1. In your [Vercel Dashboard](https://vercel.com/dashboard), click **"Add New Project"** and import `https://github.com/yuvanharshaj/Advanced-UI-UX-Project`.
+2. Keep the default **Root Directory** (`./`).
+3. Click **Deploy**.
+4. The root [`vercel.json`](file:///vercel.json) automatically routes all traffic, static assets, service worker, and web manifest directly to the application with optimal caching and security headers.
+
+### Option B: Custom Root Directory
+If you choose to set the **Root Directory** to `demo` in Vercel Project Settings:
+1. Framework Preset: **Other**
+2. Root Directory: `demo`
+3. Click **Deploy**.
+4. The application will serve directly using [`demo/vercel.json`](file:///demo/vercel.json).

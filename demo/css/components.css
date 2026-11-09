@@ -74,6 +74,40 @@
   background-color: var(--color-orange-tint);
 }
 
+.screen-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-block-end: var(--space-16);
+}
+
+.screen-title {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  padding: var(--space-8);
+  min-inline-size: var(--touch-target-min);
+  min-block-size: var(--touch-target-min);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-back:hover,
+.btn-back:focus-visible {
+  background-color: var(--color-orange-tint);
+}
+
 /* Language Chip in Top Bar (Pink-tinted pill) */
 .lang-chip-btn {
   display: inline-flex;

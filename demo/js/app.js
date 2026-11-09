@@ -542,6 +542,10 @@ function renderResultsScreen(params, lang) {
       </div>
 
       <div role="status" aria-label="${t('loadingRoutes')}">
+        <div style="display:flex; align-items:center; gap:8px; margin-block-end:14px; color:var(--color-text-muted); font-size:var(--font-size-small); font-weight:600;">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>${t('loadingRoutes')}</span>
+        </div>
         <div class="skeleton-card">
           <div class="skeleton-shimmer" style="block-size:24px; inline-size:50%; margin-block-end:12px;"></div>
           <div class="skeleton-shimmer" style="block-size:16px; inline-size:80%; margin-block-end:16px;"></div>
@@ -687,7 +691,7 @@ function renderResultsScreen(params, lang) {
                     <span class="route-card-code"><bdi>${r.code}</bdi></span>
                     <span class="live-departure-chip">
                       <span class="live-dot" aria-hidden="true"></span>
-                      <span>${r.nextDeparture || '4 min'}</span>
+                      <span>${formatRelativeCountdown(r.nextDepartureMinutes || 4, lang)}</span>
                     </span>
                   </div>
                   <span class="route-card-corridor">
@@ -978,7 +982,12 @@ function renderSettingsScreen(lang) {
   const currentNumSys = getNumberingSystem();
 
   return `
-    <h1 class="sr-only">${t('navSettings')}</h1>
+    <div class="screen-title-row" style="margin-block-end:var(--space-16);">
+      <button type="button" class="btn-back" id="btn-back-settings" aria-label="${t('back')}">
+        ${getIcon('arrow-back')}
+      </button>
+      <h1 class="screen-title">${t('navSettings')}</h1>
+    </div>
 
     <!-- Language Selection Section -->
     <section class="settings-section" aria-labelledby="settings-lang-heading">
@@ -1246,6 +1255,7 @@ function renderDesignSystemPage(lang) {
             <div class="icon-item">${getIcon('globe')}<span>globe</span></div>
             <div class="icon-item">${getIcon('search')}<span>search</span></div>
             <div class="icon-item">${getIcon('home')}<span>home</span></div>
+            <div class="icon-item">${getIcon('settings')}<span>settings</span></div>
             <div class="icon-item">${getIcon('clock')}<span>clock</span></div>
             <div class="icon-item">${getIcon('pin')}<span>pin</span></div>
             <div class="icon-item">${getIcon('bus')}<span>bus</span></div>
@@ -1506,6 +1516,14 @@ function attachEventHandlers(route, params) {
     });
   }
 
+  // Settings Back Button
+  const btnBackSettings = document.getElementById('btn-back-settings');
+  if (btnBackSettings) {
+    btnBackSettings.addEventListener('click', () => {
+      navigate('home');
+    });
+  }
+
   // Header Language Chip Button
   const btnOpenLangSheet = document.getElementById('btn-open-lang-sheet');
   if (btnOpenLangSheet) {
@@ -1748,7 +1766,7 @@ function attachEventHandlers(route, params) {
     btnToggleSave.addEventListener('click', () => {
       const routeId = btnToggleSave.getAttribute('data-route-id');
       const nowSaved = toggleFavourite(routeId);
-      showToast(nowSaved ? t('routeSaved') : 'Removed from saved');
+      showToast(nowSaved ? t('routeSaved') : t('routeRemoved'));
       renderApp();
     });
   }
@@ -2069,6 +2087,16 @@ function init() {
 
   window.addEventListener('hashchange', () => {
     renderApp();
+  });
+
+  window.addEventListener('online', () => {
+    renderApp();
+    showToast(t('toastOnline'));
+  });
+
+  window.addEventListener('offline', () => {
+    renderApp();
+    showToast(t('offlineBanner'));
   });
 
   if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
